@@ -1,7 +1,7 @@
 # SmartCost - Costos Gastronómicos
 
 ## El Problema
-[Copia y pega aquí la frase clara de tu diagnóstico sobre a quién afecta el problema de no saber calcular costos en gastronomía].
+un entorno de gestión de pequeño restaurante abrumado por el caos de los cálculos manuales, planillas de Excel complejas y la presión del tiempo.
 
 ## La Solución
 SmartCost es una aplicación desarrollada en Python utilizando Kivy y KivyMD. Permite a los usuarios registrar insumos, armar recetas de forma dinámica y calcular el costo real y margen de ganancia de sus platos mediante una interfaz móvil navegable.
