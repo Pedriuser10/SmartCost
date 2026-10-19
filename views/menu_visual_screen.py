@@ -5,11 +5,11 @@ from kivymd.uix.screen import MDScreen
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.scrollview import MDScrollView
 from kivymd.uix.gridlayout import MDGridLayout
-from kivymd.uix.button import MDRaisedButton
 from kivymd.uix.label import MDLabel
 from kivymd.uix.card import MDCard
-
-from lib import storage
+from kivymd.uix.button import MDButton , MDButtonText
+from models import storage
+from services.calculo_costos import costo_real_plato, margen
 
 
 class DishCard(MDCard):
@@ -43,7 +43,7 @@ class DishCard(MDCard):
 
         info = MDBoxLayout(orientation="vertical", padding=dp(10), spacing=dp(2))
         info.add_widget(MDLabel(
-            text=plato["nombre"], bold=True, font_style="Subtitle1",
+            text=plato["nombre"], bold=True, font_style="Title", role="medium",
             theme_text_color="Custom", text_color=(1, 1, 1, 1),
         ))
         info.add_widget(MDLabel(
@@ -59,12 +59,12 @@ class MenuVisualScreen(MDScreen):
 
         root = MDBoxLayout(orientation="vertical", padding=dp(24), spacing=dp(16))
 
-        back = MDRaisedButton(text="‹  Volver al inicio", size_hint_y=None, height=dp(48))
+        back = MDButton(MDButtonText(text="‹  Volver al inicio", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48))
         back.bind(on_release=lambda *_: setattr(self.manager, "current", "inicio"))
         root.add_widget(back)
 
         root.add_widget(
-            MDLabel(text="Menú", font_style="H4", bold=True, size_hint_y=None, height=dp(52),
+            MDLabel(text="Menú", font_style="Headline", role="medium", bold=True, size_hint_y=None, height=dp(52),
                     theme_text_color="Custom", text_color=(1, 1, 1, 1))
         )
 

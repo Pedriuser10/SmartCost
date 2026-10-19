@@ -2,24 +2,23 @@
 from kivy.metrics import dp
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.boxlayout import MDBoxLayout
-from kivymd.uix.button import MDRaisedButton
 from kivymd.uix.label import MDLabel
-
+from kivymd.uix.button import MDButton , MDButtonText
 
 class ModuleScreen(MDScreen):
     def __init__(self, title, description, **kwargs):
         super().__init__(**kwargs)
         layout = MDBoxLayout(orientation="vertical", padding=dp(24), spacing=dp(18))
 
-        back = MDRaisedButton(text="‹  Volver al inicio", size_hint_y=None, height=dp(48))
+        back = MDButton(MDButtonText(text="‹  Volver al inicio", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48))
         back.bind(on_release=lambda *_: setattr(self.manager, "current", "inicio"))
         layout.add_widget(back)
 
         layout.add_widget(
-            MDLabel(text=title, font_style="H4", bold=True, size_hint_y=None, height=dp(52))
+            MDLabel(text=title, font_style="Headline", role="medium", bold=True, size_hint_y=None, height=dp(52))
         )
         layout.add_widget(
-            MDLabel(text=description, font_style="Subtitle1", theme_text_color="Secondary")
+            MDLabel(text=description, font_style="Title", role="medium", theme_text_color="Secondary")
         )
 
         self.content = MDLabel(

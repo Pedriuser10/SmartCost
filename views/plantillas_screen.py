@@ -12,17 +12,16 @@ from kivy.metrics import dp
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.scrollview import MDScrollView
-from kivymd.uix.button import MDRaisedButton, MDFlatButton
 from kivymd.uix.label import MDLabel
-from kivymd.uix.textfield import MDTextField
+from kivymd.uix.textfield import MDTextField , MDTextFieldHintText
 from kivymd.uix.card import MDCard
 from kivymd.uix.menu import MDDropdownMenu
 from kivymd.uix.filemanager import MDFileManager
-
-from lib import storage
-from lib.plantillas import PLANTILLAS
-from lib.combinaciones import PROTEINAS, GUARNICIONES, SALSAS
-
+from models import storage
+from services.calculo_costos import costo_real_plato, margen
+from services.plantillas import PLANTILLAS
+from services.combinaciones import PROTEINAS, GUARNICIONES, SALSAS
+from kivymd.uix.button import MDButton , MDButtonText
 
 def _crear_plato_con_insumos(nombre, precio_venta, mano_obra, lista_insumos):
     """
@@ -63,12 +62,12 @@ class PlantillasScreen(MDScreen):
 
         root = MDBoxLayout(orientation="vertical", padding=dp(24), spacing=dp(14))
 
-        back = MDRaisedButton(text="‹  Volver al inicio", size_hint_y=None, height=dp(48))
+        back = MDButton(MDButtonText(text="‹  Volver al inicio", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48))
         back.bind(on_release=lambda *_: setattr(self.manager, "current", "inicio"))
         root.add_widget(back)
 
         root.add_widget(
-            MDLabel(text="Mis Plantillas", font_style="H4", bold=True, size_hint_y=None, height=dp(52),
+            MDLabel(text="Mis Plantillas", font_style="Headline", role="medium", bold=True, size_hint_y=None, height=dp(52),
                     theme_text_color="Custom", text_color=(1, 1, 1, 1))
         )
 
@@ -99,7 +98,7 @@ class PlantillasScreen(MDScreen):
             padding=dp(16), spacing=dp(10), md_bg_color=(0.15, 0.15, 0.18, 1), radius=[dp(10)],
         )
         card.add_widget(MDLabel(
-            text="Generador de combinaciones", bold=True, font_style="H6",
+            text="Generador de combinaciones", bold=True, font_style="Title", role="large",
             theme_text_color="Custom", text_color=(1, 1, 1, 1), size_hint_y=None, height=dp(30),
         ))
         card.add_widget(MDLabel(
@@ -109,20 +108,20 @@ class PlantillasScreen(MDScreen):
         ))
 
         selectores = MDBoxLayout(size_hint_y=None, height=dp(48), spacing=dp(8))
-        self.btn_proteina = MDFlatButton(text="Proteína", on_release=lambda x: self._abrir_selector(x, PROTEINAS, self._set_proteina))
-        self.btn_guarnicion = MDFlatButton(text="Guarnición", on_release=lambda x: self._abrir_selector(x, GUARNICIONES, self._set_guarnicion))
-        self.btn_salsa = MDFlatButton(text="Salsa (opcional)", on_release=lambda x: self._abrir_selector(x, SALSAS, self._set_salsa))
+        self.btn_proteina = MDButton(MDButtonText(text="Proteína", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48))
+        self.btn_guarnicion = MDButton(MDButtonText(text="Guarnición", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48))
+        self.btn_salsa = MDButton(MDButtonText(text="Salsa (opcional)", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48))
         selectores.add_widget(self.btn_proteina)
         selectores.add_widget(self.btn_guarnicion)
         selectores.add_widget(self.btn_salsa)
         card.add_widget(selectores)
 
-        self.nombre_combo_field = MDTextField(hint_text="Nombre del plato (se sugiere solo)")
-        self.precio_combo_field = MDTextField(hint_text="Precio de venta", input_filter="float")
+        self.nombre_combo_field = MDTextField(MDTextFieldHintText(text="Nombre del plato (se sugiere solo)"))
+        self.precio_combo_field = MDTextField(MDTextFieldHintText(text="Precio de venta"), input_filter="float")
         card.add_widget(self.nombre_combo_field)
         card.add_widget(self.precio_combo_field)
 
-        crear_btn = MDRaisedButton(text="CREAR PLATO CON ESTA COMBINACIÓN", size_hint_y=None, height=dp(48))
+        crear_btn = MDButton(MDButtonText(text="CREAR PLATO CON ESTA COMBINACIÓN", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48))
         crear_btn.bind(on_release=lambda x: self._crear_combo())
         card.add_widget(crear_btn)
         return card
@@ -191,7 +190,7 @@ class PlantillasScreen(MDScreen):
             padding=dp(16), spacing=dp(8), md_bg_color=(0.15, 0.15, 0.18, 1), radius=[dp(10)],
         )
         card.add_widget(MDLabel(
-            text="Importar mis recetas desde CSV", bold=True, font_style="H6",
+            text="Importar mis recetas desde CSV", bold=True, font_style="Title", role="large",
             theme_text_color="Custom", text_color=(1, 1, 1, 1), size_hint_y=None, height=dp(30),
         ))
         card.add_widget(MDLabel(
@@ -200,7 +199,7 @@ class PlantillasScreen(MDScreen):
                  "insumo de cada plato (el mismo nombre de plato se repite en varias filas).",
             theme_text_color="Secondary",
         ))
-        btn = MDRaisedButton(text="ELEGIR ARCHIVO CSV", size_hint_y=None, height=dp(48))
+        btn = MDButton(MDButtonText(text="ELEGIR ARCHIVO CSV", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48))
         btn.bind(on_release=lambda x: self._abrir_selector_csv())
         card.add_widget(btn)
         return card
@@ -256,7 +255,7 @@ class PlantillasScreen(MDScreen):
         contenedor = MDBoxLayout(orientation="vertical", spacing=dp(10), size_hint_y=None)
         contenedor.bind(minimum_height=contenedor.setter("height"))
         contenedor.add_widget(MDLabel(
-            text="Accesos rápidos", bold=True, font_style="H6",
+            text="Accesos rápidos", bold=True, font_style="Title", role="large",
             theme_text_color="Custom", text_color=(1, 1, 1, 1), size_hint_y=None, height=dp(30),
         ))
         for plantilla in PLANTILLAS:
@@ -275,7 +274,7 @@ class PlantillasScreen(MDScreen):
             theme_text_color="Secondary",
         ))
         card.add_widget(
-            MDFlatButton(text="USAR ESTA PLANTILLA", on_release=lambda x, p=plantilla: self._usar_plantilla(p))
+            MDButton(MDButtonText(text="USAR ESTA PLANTILLA", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48))
         )
         return card
 

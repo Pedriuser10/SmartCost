@@ -1,57 +1,29 @@
-"""Punto de entrada de SmartCost."""
 from kivymd.app import MDApp
 from kivy.uix.screenmanager import ScreenManager
-
-from lib.storage import init_db
-from screens.home_screen import HomeScreen, MODULES
-from screens.module_screen import ModuleScreen
-from screens.cost_calculator_screen import CostCalculatorScreen
-from screens.recetas_screen import RecetasScreen
-from screens.ingenieria_menu_screen import IngenieriaMenuScreen
-from screens.menu_visual_screen import MenuVisualScreen
-from screens.plantillas_screen import PlantillasScreen
-
-# Pantallas que ya tienen funcionalidad propia (conectadas a SQLite).
-# El resto se sigue mostrando como ModuleScreen (placeholder).
-PANTALLAS_FUNCIONALES = {
-    "calcular_costos", "mis_recetas", "ingenieria_de_menu", "menu_visual", "mis_plantillas"
-}
-
-DESCRIPCIONES = {
-    "configuracion": "Ajusta moneda, unidades y preferencias de la aplicación.",
-    "acerca_de": "SmartCost te ayuda a tomar mejores decisiones para tu negocio.",
-}
-
+from models.storage import init_db
+from views.home_screen import HomeScreen 
+from views.module_screen import ModuleScreen
+from views.cost_calculator_screen import CostCalculatorScreen
+from views.recetas_screen import RecetasScreen
+from views.ingenieria_menu_screen import IngenieriaMenuScreen
+from views.menu_visual_screen import MenuVisualScreen
+from views.plantillas_screen import PlantillasScreen
+from views.module_screen import ModuleScreen
 
 class SmartCostApp(MDApp):
     def build(self):
-        self.title = "SmartCost"
         self.theme_cls.theme_style = "Dark"
-        self.theme_cls.primary_palette = "DeepOrange"
-
+        self.theme_cls.primary_palette = "Orange"
         init_db()
+        sm = ScreenManager()
+        pantallas = [HomeScreen , CostCalculatorScreen , RecetasScreen , IngenieriaMenuScreen , MenuVisualScreen , PlantillasScreen]
 
-        manager = ScreenManager()
-        manager.add_widget(HomeScreen())
-        manager.add_widget(CostCalculatorScreen())
-        manager.add_widget(RecetasScreen())
-        manager.add_widget(IngenieriaMenuScreen())
-        manager.add_widget(MenuVisualScreen())
-        manager.add_widget(PlantillasScreen())
+        for pantalla in pantallas:
+            sm.add_widget(pantalla())
+            sm.add_widget(ModuleScreen(name="configuracion", title="Configuración", description="Ajusta parámetros, unidades y moneda"))
+            sm.add_widget(ModuleScreen(name="acerca_de", title="Acerca de", description="App para calcular costos reales y controlar la rentabilidad del menú en " \
+            "pequeños negocios gastronómicos. Python + Kivy/KivyMD + SQLite."))
 
-        for title, _subtitle, _icon, _color, screen_name in MODULES:
-            if screen_name in PANTALLAS_FUNCIONALES:
-                continue
-            manager.add_widget(
-                ModuleScreen(
-                    title=title,
-                    description=DESCRIPCIONES.get(screen_name, ""),
-                    name=screen_name,
-                )
-            )
-
-        return manager
-
-
+        return sm
 if __name__ == "__main__":
     SmartCostApp().run()

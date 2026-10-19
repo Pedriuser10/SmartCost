@@ -3,12 +3,11 @@ from kivy.metrics import dp
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.scrollview import MDScrollView
-from kivymd.uix.button import MDRaisedButton
 from kivymd.uix.label import MDLabel
 from kivymd.uix.card import MDCard
-
-from lib import storage
-from lib.calculo_costos import costo_real_plato, margen, clasificar_margen, COLOR_MARGEN
+from kivymd.uix.button import MDButton , MDButtonText
+from models import storage
+from services.calculo_costos import costo_real_plato, margen , COLOR_MARGEN, clasificar_margen
 
 
 class IngenieriaMenuScreen(MDScreen):
@@ -17,12 +16,12 @@ class IngenieriaMenuScreen(MDScreen):
 
         root = MDBoxLayout(orientation="vertical", padding=dp(24), spacing=dp(16))
 
-        back = MDRaisedButton(text="‹  Volver al inicio", size_hint_y=None, height=dp(48))
+        back = MDButton(MDButtonText(text="‹  Volver al inicio", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48))
         back.bind(on_release=lambda *_: setattr(self.manager, "current", "inicio"))
         root.add_widget(back)
 
         root.add_widget(
-            MDLabel(text="Ingeniería de Menú", font_style="H4", bold=True, size_hint_y=None, height=dp(52),
+            MDLabel(text="Ingeniería de Menú", font_style="Headline", role="medium", bold=True, size_hint_y=None, height=dp(52),
                     theme_text_color="Custom", text_color=(1, 1, 1, 1))
         )
 
@@ -73,7 +72,7 @@ class IngenieriaMenuScreen(MDScreen):
                 md_bg_color=COLOR_MARGEN[r["categoria"]], radius=[dp(10)],
             )
             card.add_widget(MDLabel(
-                text=r["nombre"], bold=True, font_style="Subtitle1",
+                text=r["nombre"], bold=True, font_style="Title", role="medium",
                 theme_text_color="Custom", text_color=(1, 1, 1, 1),
             ))
             card.add_widget(MDLabel(

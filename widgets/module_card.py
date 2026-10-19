@@ -30,7 +30,7 @@ class ModuleCard(MDCard):
         self.add_widget(
             MDLabel(
                 text=title,
-                font_style="H6",
+                font_style="Title", role="large",
                 bold=True,
                 theme_text_color="Custom",
                 text_color=(1, 1, 1, 1),
@@ -42,7 +42,7 @@ class ModuleCard(MDCard):
         self.add_widget(
             MDLabel(
                 text=subtitle,
-                font_style="Caption",
+                font_style="Label", role="medium",
                 theme_text_color="Custom",
                 text_color=(0.6, 0.6, 0.6, 1),
             )

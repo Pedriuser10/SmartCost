@@ -57,7 +57,7 @@ class HomeScreen(MDScreen):
         header_box.add_widget(
             MDLabel(
                 text="Costos Gastronómicos",
-                font_style="H4",
+                font_style="Headline", role="medium",
                 bold=True,
                 halign="center",
                 theme_text_color="Custom",
@@ -67,7 +67,7 @@ class HomeScreen(MDScreen):
         header_box.add_widget(
             MDLabel(
                 text="Calcula, organiza y haz crecer tu negocio",
-                font_style="Subtitle1",
+                font_style="Title", role="medium",
                 halign="center",
                 theme_text_color="Custom",
                 text_color=(0.8, 0.8, 0.8, 1),

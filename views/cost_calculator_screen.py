@@ -3,12 +3,11 @@ from kivy.metrics import dp
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.scrollview import MDScrollView
-from kivymd.uix.button import MDRaisedButton, MDFlatButton
 from kivymd.uix.label import MDLabel
 from kivymd.uix.menu import MDDropdownMenu
-
-from lib import storage
-from lib.calculo_costos import costo_real_plato, margen
+from kivymd.uix.button import MDButton, MDButtonText
+from models import storage
+from services.calculo_costos import costo_real_plato, margen
 
 
 class CostCalculatorScreen(MDScreen):
@@ -19,12 +18,12 @@ class CostCalculatorScreen(MDScreen):
 
         root = MDBoxLayout(orientation="vertical", padding=dp(24), spacing=dp(16))
 
-        back = MDRaisedButton(text="‹  Volver al inicio", size_hint_y=None, height=dp(48))
+        back = MDButton (MDButtonText(text="Volver", size_hint_y=None, height=dp(48), theme_text_color="Custom", text_color=(0.8, 0.8, 0.8, 1)),style="text", size_hint_y=None, height=dp(48))
         back.bind(on_release=lambda *_: setattr(self.manager, "current", "inicio"))
         root.add_widget(back)
 
         root.add_widget(
-            MDLabel(text="Calcular Costos", font_style="H4", bold=True, size_hint_y=None, height=dp(52),
+            MDLabel(text="Calcular Costos", font_style="Headline", role="medium", bold=True, size_hint_y=None, height=dp(52),
                     theme_text_color="Custom", text_color=(1, 1, 1, 1))
         )
         root.add_widget(
@@ -35,7 +34,7 @@ class CostCalculatorScreen(MDScreen):
             )
         )
 
-        self.selector_btn = MDRaisedButton(text="Elegir plato", size_hint_y=None, height=dp(48))
+        self.selector_btn = MDButton(MDButtonText(text="Elegir plato", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48))
         self.selector_btn.bind(on_release=self._abrir_selector)
         root.add_widget(self.selector_btn)
 
