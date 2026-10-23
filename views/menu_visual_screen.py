@@ -17,7 +17,7 @@ class DishCard(MDCard):
         super().__init__(**kwargs)
         self.orientation = "vertical"
         self.radius = [dp(14)]
-        self.md_bg_color = (0.16, 0.14, 0.13, 1)
+        self.md_bg_color = (0.95, 0.95, 0.95, 1)
         self.size_hint_y = None
         self.height = dp(220)
         self.ripple_behavior = True
@@ -35,7 +35,7 @@ class DishCard(MDCard):
             )
         else:
             foto = MDLabel(
-                text="🍽", halign="center", font_style="H2",
+                text="🍽", halign="center", font_style="Display", role="large",
                 size_hint_y=None, height=dp(140),
                 theme_text_color="Custom", text_color=(0.4, 0.4, 0.45, 1),
             )
@@ -44,18 +44,18 @@ class DishCard(MDCard):
         info = MDBoxLayout(orientation="vertical", padding=dp(10), spacing=dp(2))
         info.add_widget(MDLabel(
             text=plato["nombre"], bold=True, font_style="Title", role="medium",
-            theme_text_color="Custom", text_color=(1, 1, 1, 1),
+            theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1),
         ))
         info.add_widget(MDLabel(
             text=f"${plato['precio_venta']:,.0f}",
-            theme_text_color="Custom", text_color=(0.2, 0.8, 0.4, 1),
+            theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1),
         ))
         self.add_widget(info)
 
 
 class MenuVisualScreen(MDScreen):
     def __init__(self, **kwargs):
-        super().__init__(name="menu_visual", md_bg_color=(0.08, 0.08, 0.1, 1), **kwargs)
+        super().__init__(name="menu_visual", md_bg_color=(0.95, 0.95, 0.95, 1), **kwargs)
 
         root = MDBoxLayout(orientation="vertical", padding=dp(24), spacing=dp(16))
 
@@ -65,7 +65,7 @@ class MenuVisualScreen(MDScreen):
 
         root.add_widget(
             MDLabel(text="Menú", font_style="Headline", role="medium", bold=True, size_hint_y=None, height=dp(52),
-                    theme_text_color="Custom", text_color=(1, 1, 1, 1))
+                    theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1))
         )
 
         scroll = MDScrollView()

@@ -23,7 +23,7 @@ IMAGENES_DIR = os.path.join(
 
 class RecetasScreen(MDScreen):
     def __init__(self, **kwargs):
-        super().__init__(name="mis_recetas", md_bg_color=(0.08, 0.08, 0.1, 1), **kwargs)
+        super().__init__(name="mis_recetas", md_bg_color=(0.95, 0.95, 0.95, 1), **kwargs)
         self.modo = "insumos"
         self.dialog = None
         self.insumos_dialog = None
@@ -42,7 +42,7 @@ class RecetasScreen(MDScreen):
 
         root.add_widget(
             MDLabel(text="Mis Recetas", font_style="Headline", role="medium", bold=True, size_hint_y=None, height=dp(52),
-                    theme_text_color="Custom", text_color=(1, 1, 1, 1))
+                    theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1))
         )
 
         tabs = MDBoxLayout(size_hint_y=None, height=dp(48), spacing=dp(8))
@@ -108,7 +108,7 @@ class RecetasScreen(MDScreen):
         fila = MDBoxLayout(orientation="horizontal", size_hint_y=None, height=dp(44), spacing=dp(8))
         if imagen and os.path.exists(imagen):
             fila.add_widget(FitImage(source=imagen, size_hint=(None, None), size=(dp(40), dp(40)), radius=[dp(6)]))
-        lbl = MDLabel(text=texto, theme_text_color="Custom", text_color=(0.9, 0.9, 0.9, 1))
+        lbl = MDLabel(text=texto, theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1))
         fila.add_widget(lbl)
         btn = MDIconButton(icon="pencil", theme_icon_color="Custom", icon_color=(0.6, 0.6, 0.6, 1))
         btn.bind(on_release=lambda x: on_tap())

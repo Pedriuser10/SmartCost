@@ -12,23 +12,23 @@ from services.calculo_costos import costo_real_plato, margen
 
 class CostCalculatorScreen(MDScreen):
     def __init__(self, **kwargs):
-        super().__init__(name="calcular_costos", md_bg_color=(0.08, 0.08, 0.1, 1), **kwargs)
+        super().__init__(name="calcular_costos", md_bg_color=(0.95, 0.96, 0.99, 1), **kwargs)
         self.menu = None
         self._plato_actual = None
 
         root = MDBoxLayout(orientation="vertical", padding=dp(24), spacing=dp(16))
 
-        back = MDButton (MDButtonText(text="Volver", size_hint_y=None, height=dp(48), theme_text_color="Custom", text_color=(0.8, 0.8, 0.8, 1)),style="text", size_hint_y=None, height=dp(48))
+        back = MDButton (MDButtonText(text="Volver", size_hint_y=None, height=dp(48), theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1)),style="text", size_hint_y=None, height=dp(48))
         back.bind(on_release=lambda *_: setattr(self.manager, "current", "inicio"))
         root.add_widget(back)
 
         root.add_widget(
             MDLabel(text="Calcular Costos", font_style="Headline", role="medium", bold=True, size_hint_y=None, height=dp(52),
-                    theme_text_color="Custom", text_color=(1, 1, 1, 1))
+                    theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1))
         )
         root.add_widget(
             MDLabel(
-                text="Elige un plato de tu carta para ver su costo real calculado a partir de la receta.",
+                text="Seleccione el plato que desea pedir y revise su costo real calculado a partir de la receta.",
                 theme_text_color="Secondary",
                 size_hint_y=None, height=dp(40),
             )
@@ -103,11 +103,11 @@ class CostCalculatorScreen(MDScreen):
             fila = MDBoxLayout(orientation="horizontal", size_hint_y=None, height=dp(30))
             fila.add_widget(MDLabel(
                 text=f"{item['nombre']}  ·  {item['cantidad']} {item['unidad']}",
-                theme_text_color="Custom", text_color=(0.85, 0.85, 0.85, 1),
+                theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1),
             ))
             fila.add_widget(MDLabel(
                 text=f"${subtotal:,.0f}", halign="right",
-                theme_text_color="Custom", text_color=(0.85, 0.85, 0.85, 1),
+                theme_text_color="Custom", text_color=(1, 0, 0, 1),
             ))
             self.resultado_box.add_widget(fila)
 
@@ -121,11 +121,10 @@ class CostCalculatorScreen(MDScreen):
         self.resultado_box.add_widget(MDLabel(
             text=f"Costo real total: ${costo:,.0f}",
             bold=True, size_hint_y=None, height=dp(32),
-            theme_text_color="Custom", text_color=(1, 1, 1, 1),
+            theme_text_color="Custom", text_color=(0, 1, 0, 1),
         ))
         self.resultado_box.add_widget(MDLabel(
             text=f"Precio de venta: ${plato['precio_venta']:,.0f}   ·   Margen: {m:.1f}%",
             bold=True, size_hint_y=None, height=dp(32),
-            theme_text_color="Custom", text_color=(0.2, 0.8, 0.4, 1) if m > 30 else
-            ((0.95, 0.73, 0.13, 1) if m >= 10 else (0.9, 0.3, 0.3, 1)),
+            theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1) 
         ))

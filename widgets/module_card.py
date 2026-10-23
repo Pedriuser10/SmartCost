@@ -13,7 +13,6 @@ class ModuleCard(MDCard):
         self.spacing = dp(8)
         self.radius = [dp(16)]
         self.ripple_behavior = True
-        self.md_bg_color = (0.22, 0.15, 0.12, 0.85)
         self.line_color = (0.4, 0.25, 0.15, 0.6)
 
         top_box = MDBoxLayout(size_hint_y=None, height=dp(40))
@@ -33,7 +32,7 @@ class ModuleCard(MDCard):
                 font_style="Title", role="large",
                 bold=True,
                 theme_text_color="Custom",
-                text_color=(1, 1, 1, 1),
+                text_color=(0.1, 0.1, 0.1, 1),
                 size_hint_y=None,
                 height=dp(28),
             )
@@ -44,6 +43,6 @@ class ModuleCard(MDCard):
                 text=subtitle,
                 font_style="Label", role="medium",
                 theme_text_color="Custom",
-                text_color=(0.6, 0.6, 0.6, 1),
+                text_color=(0.1, 0.1, 0.1, 1),
             )
-        )
+        )                      

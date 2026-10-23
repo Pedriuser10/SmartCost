@@ -12,7 +12,7 @@ from services.calculo_costos import costo_real_plato, margen , COLOR_MARGEN, cla
 
 class IngenieriaMenuScreen(MDScreen):
     def __init__(self, **kwargs):
-        super().__init__(name="ingenieria_de_menu", md_bg_color=(0.08, 0.08, 0.1, 1), **kwargs)
+        super().__init__(name="ingenieria_de_menu", md_bg_color=(0.95, 0.95, 0.95, 1), **kwargs)
 
         root = MDBoxLayout(orientation="vertical", padding=dp(24), spacing=dp(16))
 
@@ -22,7 +22,7 @@ class IngenieriaMenuScreen(MDScreen):
 
         root.add_widget(
             MDLabel(text="Ingeniería de Menú", font_style="Headline", role="medium", bold=True, size_hint_y=None, height=dp(52),
-                    theme_text_color="Custom", text_color=(1, 1, 1, 1))
+                    theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1))
         )
 
         self.resumen_label = MDLabel(
@@ -73,10 +73,10 @@ class IngenieriaMenuScreen(MDScreen):
             )
             card.add_widget(MDLabel(
                 text=r["nombre"], bold=True, font_style="Title", role="medium",
-                theme_text_color="Custom", text_color=(1, 1, 1, 1),
+                theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1),
             ))
             card.add_widget(MDLabel(
                 text=f"Venta ${r['precio_venta']:,.0f}  ·  Costo real ${r['costo']:,.0f}  ·  Margen {r['margen']:.1f}%",
-                theme_text_color="Custom", text_color=(1, 1, 1, 1),
+                theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1),
             ))
             self.container.add_widget(card)

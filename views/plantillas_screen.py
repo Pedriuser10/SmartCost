@@ -53,7 +53,7 @@ def _crear_plato_con_insumos(nombre, precio_venta, mano_obra, lista_insumos):
 
 class PlantillasScreen(MDScreen):
     def __init__(self, **kwargs):
-        super().__init__(name="mis_plantillas", md_bg_color=(0.08, 0.08, 0.1, 1), **kwargs)
+        super().__init__(name="mis_plantillas", md_bg_color=(0.95, 0.95, 0.95, 1), **kwargs)
         self.menu = None
         self.file_manager = None
         self._proteina = None
@@ -68,12 +68,12 @@ class PlantillasScreen(MDScreen):
 
         root.add_widget(
             MDLabel(text="Mis Plantillas", font_style="Headline", role="medium", bold=True, size_hint_y=None, height=dp(52),
-                    theme_text_color="Custom", text_color=(1, 1, 1, 1))
+                    theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1))
         )
 
         self.estado_label = MDLabel(
             text="", size_hint_y=None, height=dp(30),
-            theme_text_color="Custom", text_color=(0.2, 0.8, 0.4, 1),
+            theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1),
         )
         root.add_widget(self.estado_label)
 
@@ -99,7 +99,7 @@ class PlantillasScreen(MDScreen):
         )
         card.add_widget(MDLabel(
             text="Generador de combinaciones", bold=True, font_style="Title", role="large",
-            theme_text_color="Custom", text_color=(1, 1, 1, 1), size_hint_y=None, height=dp(30),
+            theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1), size_hint_y=None, height=dp(30),
         ))
         card.add_widget(MDLabel(
             text=f"{len(PROTEINAS)} proteínas × {len(GUARNICIONES)} guarniciones × {len(SALSAS)} salsas "

@@ -5,9 +5,10 @@ from kivymd.uix.gridlayout import MDGridLayout
 from kivymd.uix.label import MDLabel
 from kivymd.uix.floatlayout import MDFloatLayout
 from kivymd.uix.fitimage import FitImage
-
+from kivy.uix.widget import Widget
+from kivymd.uix.button import MDButton , MDButtonText , MDButtonIcon
 from widgets.module_card import ModuleCard
-
+from kivymd.uix.card import MDCard
 
 MODULES = [
     ("Calcular Costos", "Calcula el costo real de tus platos y recetas",
@@ -20,67 +21,56 @@ MODULES = [
      "book-open-variant", (1, 0.6, 0.2, 1), "mis_recetas"),
     ("Mis Plantillas", "Acelera tus cálculos con plantillas base",
      "file-document-outline", (0.6, 0.4, 0.9, 1), "mis_plantillas"),
-    ("Configuración", "Ajusta parámetros, unidades y moneda",
-     "cog-outline", (0.6, 0.6, 0.6, 1), "configuracion"),
     ("Acerca de", "Información de la app y soporte técnico",
      "information-outline", (0.9, 0.3, 0.3, 1), "acerca_de"),
 ]
 
 
+from kivymd.uix.button import MDButton, MDButtonText, MDButtonIcon
+from kivy.uix.widget import Widget
+
 class HomeScreen(MDScreen):
     def __init__(self, **kwargs):
-        super().__init__(name="inicio", **kwargs)
+        super().__init__(name="inicio", md_bg_color=(0.97, 0.97, 0.99, 1), **kwargs)
 
-        main_layout = MDFloatLayout()
+        # Contenedor principal vertical
+        main_layout = MDBoxLayout(orientation="vertical", padding=dp(24), spacing=dp(16))
 
-        fondo = FitImage(
-            source="data/images/Fondo_chef.png",
-            size_hint=(1, 1)
+        # Barra superior con el botón de Configuración a la derecha
+        top_bar = MDBoxLayout(size_hint_y=None, height=dp(48))
+        top_bar.add_widget(Widget())  # Espaciador invisible para empujar el botón a la derecha
+        
+        btn_config = MDButton(
+            MDButtonIcon(icon="cog-outline"),
+            MDButtonText(text="Configuración"),
+            style="text",
+            on_release=lambda x: setattr(self.manager, "current", "configuracion")
         )
-        main_layout.add_widget(fondo)
+        top_bar.add_widget(btn_config)
+        main_layout.add_widget(top_bar)
 
-        overlay = MDBoxLayout(
-            size_hint=(1, 1),
-            md_bg_color=(0.15, 0.08, 0.05, 0.75)
-        )
-        main_layout.add_widget(overlay)
+        # Títulos de la app
+        header = MDBoxLayout(orientation="vertical", size_hint_y=None, height=dp(80), spacing=dp(4))
+        header.add_widget(MDLabel(text="Costos Gastronómicos", font_style="Headline", role="medium", bold=True, halign="center"))
+        header.add_widget(MDLabel(text="Calcula, organiza y haz crecer tu negocio", font_style="Title", role="medium", halign="center", theme_text_color="Secondary"))
+        main_layout.add_widget(header)
 
-        content = MDBoxLayout(
-            orientation="vertical",
-            padding=[dp(32), dp(24)],
-            spacing=dp(24),
-            pos_hint={"center_x": 0.5, "center_y": 0.5},
-            size_hint=(0.9, 0.9),
+        
+        container = MDCard(
+            style="outlined",
+            line_color=(0.8, 0.85, 0.9, 1), 
+            padding=dp(16),
+            radius=[dp(16)],
+            md_bg_color=(0.95, 0.96, 0.99, 1) 
         )
-
-        header_box = MDBoxLayout(orientation="vertical", size_hint_y=None, height=dp(70), spacing=dp(4))
-        header_box.add_widget(
-            MDLabel(
-                text="Costos Gastronómicos",
-                font_style="Headline", role="medium",
-                bold=True,
-                halign="center",
-                theme_text_color="Custom",
-                text_color=(1, 0.9, 0.8, 1),
-            )
-        )
-        header_box.add_widget(
-            MDLabel(
-                text="Calcula, organiza y haz crecer tu negocio",
-                font_style="Title", role="medium",
-                halign="center",
-                theme_text_color="Custom",
-                text_color=(0.8, 0.8, 0.8, 1),
-            )
-        )
-        content.add_widget(header_box)
-
-        grid = MDGridLayout(cols=2, spacing=dp(16), size_hint_y=1)
+        
+        # Cuadrícula de 6 módulos
+        grid = MDGridLayout(cols=2, spacing=dp(16))
         for title, subtitle, icon, color, screen_name in MODULES:
-            card = ModuleCard(title=title, subtitle=subtitle, icon=icon, icon_color=color)
+            card = ModuleCard(title=title, subtitle=subtitle, icon=icon, icon_color=color, md_bg_color=color) # Ajusta los colores pastel en la lista MODULES
             card.bind(on_release=lambda _w, name=screen_name: setattr(self.manager, "current", name))
             grid.add_widget(card)
-
-        content.add_widget(grid)
-        main_layout.add_widget(content)
+            
+        container.add_widget(grid)
+        main_layout.add_widget(container)
         self.add_widget(main_layout)

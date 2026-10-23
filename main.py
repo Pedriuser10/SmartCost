@@ -12,8 +12,8 @@ from views.module_screen import ModuleScreen
 
 class SmartCostApp(MDApp):
     def build(self):
-        self.theme_cls.theme_style = "Dark"
-        self.theme_cls.primary_palette = "Orange"
+        self.theme_cls.theme_style = "Light"
+        self.theme_cls.primary_palette = "Blue"
         init_db()
         sm = ScreenManager()
         pantallas = [HomeScreen , CostCalculatorScreen , RecetasScreen , IngenieriaMenuScreen , MenuVisualScreen , PlantillasScreen]
