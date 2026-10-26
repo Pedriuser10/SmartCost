@@ -2,24 +2,22 @@ import os
 import shutil
 import uuid
 
+from kivymd.uix.dialog import MDDialog, MDDialogHeadlineText, MDDialogContentContainer, MDDialogButtonContainer
 from kivy.metrics import dp
 from kivymd.uix.fitimage import FitImage
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.scrollview import MDScrollView
 from kivymd.uix.label import MDLabel
-from kivymd.uix.textfield import MDTextField , MDTextFieldHintText
-from kivymd.uix.dialog import MDDialog
+from kivymd.uix.textfield import MDTextField, MDTextFieldHintText
 from kivymd.uix.menu import MDDropdownMenu
 from kivymd.uix.filemanager import MDFileManager
 from models import storage
-from services.calculo_costos import costo_real_plato, margen
-from kivymd.uix.button import MDButton, MDButtonText , MDIconButton
+from kivymd.uix.button import MDButton, MDButtonText, MDIconButton
 
 IMAGENES_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "images"
 )
-
 
 class RecetasScreen(MDScreen):
     def __init__(self, **kwargs):
@@ -46,8 +44,16 @@ class RecetasScreen(MDScreen):
         )
 
         tabs = MDBoxLayout(size_hint_y=None, height=dp(48), spacing=dp(8))
-        self.btn_insumos = MDButton(MDButtonText(text="INSUMOS", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48))
-        self.btn_platos = MDButton(MDButtonText(text="PLATOS", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48))
+        self.btn_insumos = MDButton(
+            MDButtonText(text="INSUMOS", size_hint_y=None, height=dp(48)),
+            style="text", size_hint_y=None, height=dp(48),
+            on_release=lambda x: self.cambiar_modo("insumos")
+        )
+        self.btn_platos = MDButton(
+            MDButtonText(text="PLATOS", size_hint_y=None, height=dp(48)),
+            style="text", size_hint_y=None, height=dp(48),
+            on_release=lambda x: self.cambiar_modo("platos")
+        )
         tabs.add_widget(self.btn_insumos)
         tabs.add_widget(self.btn_platos)
         root.add_widget(tabs)
@@ -91,7 +97,7 @@ class RecetasScreen(MDScreen):
                 )
                 self.container.add_widget(self._fila(texto, lambda i=insumo: self.abrir_dialogo(i)))
         else:
-            from SmartCost.services.calculo_costos import costo_real_plato, margen
+            from services.calculo_costos import costo_real_plato, margen
             for plato in storage.get_platos():
                 usados = storage.get_insumos_de_plato(plato["id"])
                 costo = costo_real_plato(usados, plato["mano_obra"])
@@ -115,7 +121,6 @@ class RecetasScreen(MDScreen):
         fila.add_widget(btn)
         return fila
 
-
     def abrir_dialogo(self, item=None):
         if self.modo == "insumos":
             self._abrir_dialogo_insumo(item)
@@ -124,32 +129,55 @@ class RecetasScreen(MDScreen):
 
     def _abrir_dialogo_insumo(self, insumo=None):
         self._insumo_editando = insumo
-        self.nombre_field = MDTextField(MDTextFieldHintText="Nombre", text=insumo["nombre"] if insumo else "")
-        self.unidad_field = MDTextField(MDTextFieldHintText="Unidad (kg / lt / un)", text=insumo["unidad"] if insumo else "")
-        self.precio_field = MDTextField(MDTextFieldHintText="Precio de compra", text=str(insumo["precio"]) if insumo else "", input_filter="float"
+        self.nombre_field = MDTextField(
+            MDTextFieldHintText(text="Nombre"),
+            text=insumo["nombre"] if insumo else ""
+        )
+        self.unidad_field = MDTextField(
+            MDTextFieldHintText(text="Unidad (kg / lt / un)"),
+            text=insumo["unidad"] if insumo else ""
+        )
+        self.precio_field = MDTextField(
+            MDTextFieldHintText(text="Precio de compra"),
+            text=str(insumo["precio"]) if insumo else "",
+            input_filter="float"
         )
         self.merma_field = MDTextField(
-            MDTextFieldHintText ="Merma % (ej: 5)",
+            MDTextFieldHintText(text="Merma (%)"),
             text=str(insumo["merma_pct"] * 100) if insumo else "0",
-            input_filter="float",
         )
         content = MDBoxLayout(orientation="vertical", spacing=dp(10), size_hint_y=None, height=dp(220))
         for f in (self.nombre_field, self.unidad_field, self.precio_field, self.merma_field):
             content.add_widget(f)
 
         botones = [
-            MDButton(MDButtonText(text="CANCELAR", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48)),
-            MDButton(MDButtonText(text="GUARDAR", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48)),
+            MDButton(
+                MDButtonText(text="CANCELAR", size_hint_y=None, height=dp(48)), 
+                style="text", 
+                on_release=lambda x: self.dialog.dismiss()
+            ),
+            MDButton(
+                MDButtonText(text="GUARDAR", size_hint_y=None, height=dp(48)), 
+                style="text", 
+                on_release=lambda x: self._guardar_insumo()
+            )
         ]
         if insumo:
             botones.insert(0, MDButton(
-                MDButtonText(text="ELIMINAR", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48)),
-                on_release=lambda x: self._eliminar_insumo(insumo["id"]),
-            )
+                MDButtonText(text="ELIMINAR", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48),
+                on_release=lambda x: self._eliminar_insumo(insumo["id"])
+            ))
 
         self.dialog = MDDialog(
-            title="Editar insumo" if insumo else "Nuevo insumo",
-            type="custom", content_cls=content, buttons=botones,
+            MDDialogHeadlineText(
+                text="Editar insumo" if insumo else "Nuevo insumo",
+            ),
+            MDDialogContentContainer(
+                content,
+            ),
+            MDDialogButtonContainer(
+                *botones
+            ),
         )
         self.dialog.open()
 
@@ -191,7 +219,10 @@ class RecetasScreen(MDScreen):
             source=self._imagen_seleccionada if self._imagen_seleccionada else "",
             size_hint_y=None, height=dp(90), radius=[dp(8)],
         )
-        elegir_foto_btn = MDButton(MDButtonText(text="Elegir foto", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48))
+        elegir_foto_btn = MDButton(
+            MDButtonText(text="Elegir foto", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48),
+            on_release=lambda x: self._abrir_selector_imagen()
+        )
 
         content = MDBoxLayout(orientation="vertical", spacing=dp(10), size_hint_y=None, height=dp(320))
         content.add_widget(self.preview_imagen)
@@ -200,19 +231,23 @@ class RecetasScreen(MDScreen):
             content.add_widget(f)
 
         botones = [
-            MDButton(MDButtonText(text="CANCELAR", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48)),
-            MDButton(MDButtonText(text="GUARDAR", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48)),
+            MDButton(MDButtonText(text="CANCELAR", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48), on_release=lambda x: self.dialog.dismiss()),
+            MDButton(MDButtonText(text="GUARDAR", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48), on_release=lambda x: self._guardar_plato()),
         ]
         if plato:
-            botones.insert(0, MDButton(MDButtonText(text="INSUMOS", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48)))
             botones.insert(0, MDButton(
-                MDButtonText(text="ELIMINAR", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48)),
+                MDButtonText(text="INSUMOS", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48),
+                on_release=lambda x: self._abrir_gestion_insumos(plato)
+            ))
+            botones.insert(0, MDButton(
+                MDButtonText(text="ELIMINAR", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48),
                 on_release=lambda x: self._eliminar_plato(plato["id"]),
-            )
+            ))
 
         self.dialog = MDDialog(
-            title="Editar plato" if plato else "Nuevo plato",
-            type="custom", content_cls=content, buttons=botones,
+            MDDialogHeadlineText(text="Editar plato" if plato else "Nuevo plato"),
+            MDDialogContentContainer(content),
+            MDDialogButtonContainer(*botones)
         )
         self.dialog.open()
 
@@ -233,7 +268,6 @@ class RecetasScreen(MDScreen):
             storage.add_plato(nombre, precio_venta, mano_obra, self._imagen_seleccionada)
         self.dialog.dismiss()
         self.refrescar()
-
 
     def _abrir_selector_imagen(self):
         if not self.file_manager:
@@ -262,7 +296,6 @@ class RecetasScreen(MDScreen):
         storage.delete_plato(plato_id)
         self.dialog.dismiss()
         self.refrescar()
-
 
     def _abrir_gestion_insumos(self, plato):
         self.dialog.dismiss()
@@ -304,10 +337,15 @@ class RecetasScreen(MDScreen):
         )
         content.add_widget(btn_agregar_receta)
 
+        boton_cerrar = MDButton(
+            MDButtonText(text="CERRAR", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48),
+            on_release=lambda x: self._cerrar_gestion_insumos()
+        )
+
         self.insumos_dialog = MDDialog(
-            title=f"Insumos de: {plato['nombre']}",
-            type="custom", content_cls=content,
-            buttons=[MDButton(MDButtonText(text="CERRAR", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48))],
+            MDDialogHeadlineText(text=f"Insumos de: {plato['nombre']}"),
+            MDDialogContentContainer(content),
+            MDDialogButtonContainer(boton_cerrar)
         )
         self._refrescar_lista_insumos_receta()
         self.insumos_dialog.open()
@@ -327,7 +365,7 @@ class RecetasScreen(MDScreen):
 
     def _abrir_selector_insumo(self, boton):
         items = [
-            {"text": insumo["nombre"], "viewclass": "OneLineListItem", "on_release": lambda i=insumo: self._seleccionar_insumo(i)}
+            {"text": insumo["nombre"], "on_release": lambda i=insumo: self._seleccionar_insumo(i)}
             for insumo in storage.get_insumos()
         ]
         self.menu = MDDropdownMenu(caller=boton, items=items, width_mult=4)

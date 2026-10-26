@@ -1,226 +1,165 @@
-"""
-Capa de persistencia - SQLite
-Tablas: insumos, platos, plato_insumos
-"""
-import sqlite3
+import json
 import os
+from datetime import datetime
 
-DB_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "app.db"
-)
+DATA_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "app.json")
 
+class Insumo:
+    def __init__(self, id_insumo, nombre, unidad, precio, merma_pct, fecha_creacion=None):
+        self.id = id_insumo
+        self.nombre = nombre
+        self.unidad = unidad
+        self.precio = precio
+        self.merma_pct = merma_pct
+        self.fecha_creacion = fecha_creacion or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-def get_connection():
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "nombre": self.nombre,
+            "unidad": self.unidad,
+            "precio": self.precio,
+            "merma_pct": self.merma_pct,
+            "fecha_creacion": self.fecha_creacion
+        }
 
+class Plato:
+    def __init__(self, id_plato, nombre, precio_venta, mano_obra, imagen=None, ingredientes=None, fecha_creacion=None):
+        self.id = id_plato
+        self.nombre = nombre
+        self.precio_venta = precio_venta
+        self.mano_obra = mano_obra
+        self.imagen = imagen
+        self.ingredientes = ingredientes if ingredientes is not None else []
+        self.fecha_creacion = fecha_creacion or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-def init_db():
-    conn = get_connection()
-    cur = conn.cursor()
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "nombre": self.nombre,
+            "precio_venta": self.precio_venta,
+            "mano_obra": self.mano_obra,
+            "imagen": self.imagen,
+            "ingredientes": self.ingredientes,
+            "fecha_creacion": self.fecha_creacion
+        }
 
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS insumos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT NOT NULL,
-            unidad TEXT NOT NULL,
-            precio REAL NOT NULL,
-            merma_pct REAL NOT NULL DEFAULT 0
-        )
-    """)
+# ---------- HELPERS JSON ----------
 
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS platos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT NOT NULL,
-            precio_venta REAL NOT NULL,
-            mano_obra REAL NOT NULL DEFAULT 0,
-            imagen TEXT
-        )
-    """)
+def _cargar_datos():
+    if not os.path.exists(DATA_FILE):
+        return {"insumos": [], "platos": [], "next_insumo_id": 1, "next_plato_id": 1, "next_rel_id": 1}
+    with open(DATA_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
 
-    # Migración: si la tabla ya existía sin la columna 'imagen', se agrega ahora.
-    try:
-        cur.execute("ALTER TABLE platos ADD COLUMN imagen TEXT")
-    except sqlite3.OperationalError:
-        pass  # la columna ya existe
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS plato_insumos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            plato_id INTEGER NOT NULL,
-            insumo_id INTEGER NOT NULL,
-            cantidad REAL NOT NULL,
-            FOREIGN KEY (plato_id) REFERENCES platos(id) ON DELETE CASCADE,
-            FOREIGN KEY (insumo_id) REFERENCES insumos(id) ON DELETE CASCADE
-        )
-    """)
-
-    conn.commit()
-    conn.close()
-    seed_if_empty()
-
-
-def seed_if_empty():
-    """Carga datos de ejemplo la primera vez que se abre la app."""
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT COUNT(*) as c FROM insumos")
-    if cur.fetchone()["c"] == 0:
-        insumos_demo = [
-            ("Carne molida", "kg", 6500, 0.05),
-            ("Pan hamburguesa", "un", 350, 0.02),
-            ("Queso gauda", "kg", 7800, 0.03),
-            ("Tomate", "kg", 1200, 0.10),
-            ("Lechuga", "un", 900, 0.08),
-        ]
-        cur.executemany(
-            "INSERT INTO insumos (nombre, unidad, precio, merma_pct) VALUES (?, ?, ?, ?)",
-            insumos_demo,
-        )
-        conn.commit()
-
-        cur.execute("SELECT id, nombre FROM insumos")
-        ids = {row["nombre"]: row["id"] for row in cur.fetchall()}
-
-        cur.execute(
-            "INSERT INTO platos (nombre, precio_venta, mano_obra) VALUES (?, ?, ?)",
-            ("Hamburguesa Clásica", 4500, 800),
-        )
-        plato_id = cur.lastrowid
-        receta = [
-            (plato_id, ids["Carne molida"], 0.15),
-            (plato_id, ids["Pan hamburguesa"], 1),
-            (plato_id, ids["Queso gauda"], 0.03),
-            (plato_id, ids["Tomate"], 0.03),
-            (plato_id, ids["Lechuga"], 0.2),
-        ]
-        cur.executemany(
-            "INSERT INTO plato_insumos (plato_id, insumo_id, cantidad) VALUES (?, ?, ?)",
-            receta,
-        )
-        conn.commit()
-    conn.close()
-
+def _guardar_datos(datos):
+    os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(datos, f, indent=4)
 
 # ---------- INSUMOS ----------
 
 def get_insumos():
-    conn = get_connection()
-    rows = conn.execute("SELECT * FROM insumos ORDER BY nombre").fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
-
+    datos = _cargar_datos()
+    return sorted(datos["insumos"], key=lambda x: x["nombre"])
 
 def add_insumo(nombre, unidad, precio, merma_pct):
-    conn = get_connection()
-    conn.execute(
-        "INSERT INTO insumos (nombre, unidad, precio, merma_pct) VALUES (?, ?, ?, ?)",
-        (nombre, unidad, precio, merma_pct),
-    )
-    conn.commit()
-    conn.close()
-
+    datos = _cargar_datos()
+    nuevo_insumo = Insumo(datos["next_insumo_id"], nombre, unidad, precio, merma_pct)
+    datos["insumos"].append(nuevo_insumo.to_dict())
+    datos["next_insumo_id"] += 1
+    _guardar_datos(datos)
 
 def update_insumo(insumo_id, nombre, unidad, precio, merma_pct):
-    conn = get_connection()
-    conn.execute(
-        "UPDATE insumos SET nombre=?, unidad=?, precio=?, merma_pct=? WHERE id=?",
-        (nombre, unidad, precio, merma_pct, insumo_id),
-    )
-    conn.commit()
-    conn.close()
-
+    datos = _cargar_datos()
+    for insumo in datos["insumos"]:
+        if insumo["id"] == insumo_id:
+            insumo["nombre"] = nombre
+            insumo["unidad"] = unidad
+            insumo["precio"] = precio
+            insumo["merma_pct"] = merma_pct
+            break
+    _guardar_datos(datos)
 
 def delete_insumo(insumo_id):
-    conn = get_connection()
-    conn.execute("DELETE FROM insumos WHERE id = ?", (insumo_id,))
-    conn.commit()
-    conn.close()
-
+    datos = _cargar_datos()
+    datos["insumos"] = [i for i in datos["insumos"] if i["id"] != insumo_id]
+    # Eliminar en cascada el insumo de las recetas de los platos
+    for plato in datos["platos"]:
+        plato["ingredientes"] = [ing for ing in plato["ingredientes"] if ing["insumo_id"] != insumo_id]
+    _guardar_datos(datos)
 
 # ---------- PLATOS ----------
 
 def get_platos():
-    conn = get_connection()
-    rows = conn.execute("SELECT * FROM platos ORDER BY nombre").fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
-
+    datos = _cargar_datos()
+    return sorted(datos["platos"], key=lambda x: x["nombre"])
 
 def get_plato(plato_id):
-    conn = get_connection()
-    row = conn.execute("SELECT * FROM platos WHERE id = ?", (plato_id,)).fetchone()
-    conn.close()
-    return dict(row) if row else None
-
+    datos = _cargar_datos()
+    for plato in datos["platos"]:
+        if plato["id"] == plato_id:
+            return plato
+    return None
 
 def get_insumos_de_plato(plato_id):
-    conn = get_connection()
-    rows = conn.execute(
-        """
-        SELECT pi.id as rel_id, pi.cantidad, i.*
-        FROM plato_insumos pi
-        JOIN insumos i ON i.id = pi.insumo_id
-        WHERE pi.plato_id = ?
-        """,
-        (plato_id,),
-    ).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
-
+    datos = _cargar_datos()
+    plato = get_plato(plato_id)
+    if not plato:
+        return []
+    
+    resultado = []
+    for ing in plato["ingredientes"]:
+        for insumo in datos["insumos"]:
+            if insumo["id"] == ing["insumo_id"]:
+                item = insumo.copy()
+                item["rel_id"] = ing["rel_id"]
+                item["cantidad"] = ing["cantidad"]
+                resultado.append(item)
+                break
+    return resultado
 
 def add_plato(nombre, precio_venta, mano_obra, imagen=None):
-    conn = get_connection()
-    cur = conn.execute(
-        "INSERT INTO platos (nombre, precio_venta, mano_obra, imagen) VALUES (?, ?, ?, ?)",
-        (nombre, precio_venta, mano_obra, imagen),
-    )
-    conn.commit()
-    plato_id = cur.lastrowid
-    conn.close()
+    datos = _cargar_datos()
+    nuevo_plato = Plato(datos["next_plato_id"], nombre, precio_venta, mano_obra, imagen)
+    datos["platos"].append(nuevo_plato.to_dict())
+    plato_id = datos["next_plato_id"]
+    datos["next_plato_id"] += 1
+    _guardar_datos(datos)
     return plato_id
 
-
 def update_plato(plato_id, nombre, precio_venta, mano_obra, imagen=None):
-    conn = get_connection()
-    if imagen is not None:
-        conn.execute(
-            "UPDATE platos SET nombre=?, precio_venta=?, mano_obra=?, imagen=? WHERE id=?",
-            (nombre, precio_venta, mano_obra, imagen, plato_id),
-        )
-    else:
-        # No se tocó la imagen: se actualiza todo menos ese campo.
-        conn.execute(
-            "UPDATE platos SET nombre=?, precio_venta=?, mano_obra=? WHERE id=?",
-            (nombre, precio_venta, mano_obra, plato_id),
-        )
-    conn.commit()
-    conn.close()
-
+    datos = _cargar_datos()
+    for plato in datos["platos"]:
+        if plato["id"] == plato_id:
+            plato["nombre"] = nombre
+            plato["precio_venta"] = precio_venta
+            plato["mano_obra"] = mano_obra
+            if imagen is not None:
+                plato["imagen"] = imagen
+            break
+    _guardar_datos(datos)
 
 def delete_plato(plato_id):
-    conn = get_connection()
-    conn.execute("DELETE FROM platos WHERE id = ?", (plato_id,))
-    conn.commit()
-    conn.close()
-
+    datos = _cargar_datos()
+    datos["platos"] = [p for p in datos["platos"] if p["id"] != plato_id]
+    _guardar_datos(datos)
 
 def add_insumo_a_plato(plato_id, insumo_id, cantidad):
-    conn = get_connection()
-    conn.execute(
-        "INSERT INTO plato_insumos (plato_id, insumo_id, cantidad) VALUES (?, ?, ?)",
-        (plato_id, insumo_id, cantidad),
-    )
-    conn.commit()
-    conn.close()
-
+    datos = _cargar_datos()
+    for plato in datos["platos"]:
+        if plato["id"] == plato_id:
+            plato["ingredientes"].append({
+                "rel_id": datos["next_rel_id"],
+                "insumo_id": insumo_id,
+                "cantidad": cantidad
+            })
+            datos["next_rel_id"] += 1
+            break
+    _guardar_datos(datos)
 
 def quitar_insumo_de_plato(rel_id):
-    conn = get_connection()
-    conn.execute("DELETE FROM plato_insumos WHERE id = ?", (rel_id,))
-    conn.commit()
-    conn.close()
+    datos = _cargar_datos()
+    for plato in datos["platos"]:
+        plato["ingredientes"] = [ing for ing in plato["ingredientes"] if ing["rel_id"] != rel_id]
+    _guardar_datos(datos)

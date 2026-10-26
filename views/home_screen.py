@@ -51,7 +51,7 @@ class HomeScreen(MDScreen):
 
         # Títulos de la app
         header = MDBoxLayout(orientation="vertical", size_hint_y=None, height=dp(80), spacing=dp(4))
-        header.add_widget(MDLabel(text="Costos Gastronómicos", font_style="Headline", role="medium", bold=True, halign="center"))
+        header.add_widget(MDLabel(text="SmartCost", font_style="Headline", role="medium", bold=True, halign="center"))
         header.add_widget(MDLabel(text="Calcula, organiza y haz crecer tu negocio", font_style="Title", role="medium", halign="center", theme_text_color="Secondary"))
         main_layout.add_widget(header)
 

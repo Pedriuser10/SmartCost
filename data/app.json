@@ -1,0 +1,53 @@
+{
+    "insumos": [
+        {
+            "id": 1,
+            "nombre": "carne",
+            "unidad": "10 kg",
+            "precio": 9000.0,
+            "merma_pct": 0.04,
+            "fecha_creacion": "2026-10-25 16:10:03"
+        },
+        {
+            "id": 2,
+            "nombre": "papas",
+            "unidad": "10kg",
+            "precio": 5000.0,
+            "merma_pct": 0.08,
+            "fecha_creacion": "2026-10-25 16:11:16"
+        },
+        {
+            "id": 3,
+            "nombre": "cebolla",
+            "unidad": "5kg",
+            "precio": 2000.0,
+            "merma_pct": 0.1,
+            "fecha_creacion": "2026-10-25 16:12:30"
+        }
+    ],
+    "platos": [
+        {
+            "id": 2,
+            "nombre": "lomo a lo pobre",
+            "precio_venta": 9000.0,
+            "mano_obra": 4990.0,
+            "imagen": "c:\\Users\\crist\\OneDrive\\Desktop\\SmartCost\\data\\images\\1318c9e9078649cbbb39bd4463b9d69c.png",
+            "ingredientes": [
+                {
+                    "rel_id": 1,
+                    "insumo_id": 3,
+                    "cantidad": 1.0
+                },
+                {
+                    "rel_id": 2,
+                    "insumo_id": 2,
+                    "cantidad": 2.0
+                }
+            ],
+            "fecha_creacion": "2026-10-25 21:24:50"
+        }
+    ],
+    "next_insumo_id": 4,
+    "next_plato_id": 3,
+    "next_rel_id": 3
+}
