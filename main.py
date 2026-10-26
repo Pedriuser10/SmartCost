@@ -16,11 +16,11 @@ class SmartCostApp(MDApp):
         sm = ScreenManager()
         pantallas = [HomeScreen, CostCalculatorScreen, RecetasScreen, IngenieriaMenuScreen, MenuVisualScreen, PlantillasScreen]
 
-        # Agrega las pantallas principales en el bucle
+   
         for pantalla in pantallas:
             sm.add_widget(pantalla())
             
-        # Agrega las pantallas de módulos auxiliares FUERA del bucle
+       
         sm.add_widget(ModuleScreen(
             name="configuracion", 
             title="Configuración", 

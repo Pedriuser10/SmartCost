@@ -1,7 +1,7 @@
 # SmartCost
 
 App para calcular costos reales y controlar la rentabilidad del menú en
-pequeños negocios gastronómicos. Python + Kivy/KivyMD + SQLite.
+pequeños negocios gastronómicos. Python + Kivy/KivyMD + Json
 
 Proyecto desarrollado para la asignatura **Desarrollo Móvil (TINF1119V)**,
 Evaluación Integrada RA1.

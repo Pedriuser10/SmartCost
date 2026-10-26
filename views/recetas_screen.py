@@ -276,7 +276,7 @@ class RecetasScreen(MDScreen):
                 select_path=self._imagen_elegida,
                 preview=True,
             )
-        self.file_manager.show(os.path.expanduser("~"))
+        self.file_manager.show(os.path.abspath("SmartCost/data/imagenes"))
 
     def _imagen_elegida(self, ruta):
         self.file_manager.close()
@@ -284,12 +284,13 @@ class RecetasScreen(MDScreen):
             return
 
         os.makedirs(IMAGENES_DIR, exist_ok=True)
-        extension = os.path.splitext(ruta)[1]
-        nuevo_nombre = f"{uuid.uuid4().hex}{extension}"
+        nuevo_nombre = os.path.basename(ruta)
         destino = os.path.join(IMAGENES_DIR, nuevo_nombre)
-        shutil.copy(ruta, destino)
 
-        self._imagen_seleccionada = destino
+        if ruta != destino:
+            shutil.copy(ruta, destino)
+
+        self._imagen_seleccionada = f"SmartCost/data/imagenes/{nuevo_nombre}"
         self.preview_imagen.source = destino
 
     def _eliminar_plato(self, plato_id):

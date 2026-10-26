@@ -23,6 +23,54 @@
             "precio": 2000.0,
             "merma_pct": 0.1,
             "fecha_creacion": "2026-10-25 16:12:30"
+        },
+        {
+            "id": 4,
+            "nombre": "Huevos",
+            "unidad": "12",
+            "precio": 4200.0,
+            "merma_pct": 0.0,
+            "fecha_creacion": "2026-10-26 15:51:44"
+        },
+        {
+            "id": 5,
+            "nombre": "Pescado",
+            "unidad": "8kg",
+            "precio": 120000.0,
+            "merma_pct": 0.0,
+            "fecha_creacion": "2026-10-26 15:56:39"
+        },
+        {
+            "id": 6,
+            "nombre": "Limon",
+            "unidad": "5kg",
+            "precio": 7280.0,
+            "merma_pct": 0.0,
+            "fecha_creacion": "2026-10-26 15:57:49"
+        },
+        {
+            "id": 7,
+            "nombre": "cilantro",
+            "unidad": "1kg",
+            "precio": 3000.0,
+            "merma_pct": 0.0,
+            "fecha_creacion": "2026-10-26 15:59:32"
+        },
+        {
+            "id": 8,
+            "nombre": "Aji",
+            "unidad": "2kg",
+            "precio": 2000.0,
+            "merma_pct": 0.0,
+            "fecha_creacion": "2026-10-26 16:00:12"
+        },
+        {
+            "id": 9,
+            "nombre": "Arroz",
+            "unidad": "1kg",
+            "precio": 3000.0,
+            "merma_pct": 0.0,
+            "fecha_creacion": "2026-10-26 16:01:02"
         }
     ],
     "platos": [
@@ -31,7 +79,7 @@
             "nombre": "lomo a lo pobre",
             "precio_venta": 9000.0,
             "mano_obra": 4990.0,
-            "imagen": "c:\\Users\\crist\\OneDrive\\Desktop\\SmartCost\\data\\images\\1318c9e9078649cbbb39bd4463b9d69c.png",
+            "imagen": "SmartCost/data/imagenes/LomoALoPobre.png",
             "ingredientes": [
                 {
                     "rel_id": 1,
@@ -42,12 +90,52 @@
                     "rel_id": 2,
                     "insumo_id": 2,
                     "cantidad": 2.0
+                },
+                {
+                    "rel_id": 3,
+                    "insumo_id": 1,
+                    "cantidad": 1.0
+                },
+                {
+                    "rel_id": 4,
+                    "insumo_id": 4,
+                    "cantidad": 1.0
                 }
             ],
             "fecha_creacion": "2026-10-25 21:24:50"
+        },
+        {
+            "id": 3,
+            "nombre": "ceviche",
+            "precio_venta": 12000.0,
+            "mano_obra": 4990.0,
+            "imagen": "SmartCost/data/imagenes/Ceviche.png",
+            "ingredientes": [
+                {
+                    "rel_id": 5,
+                    "insumo_id": 5,
+                    "cantidad": 1.0
+                },
+                {
+                    "rel_id": 6,
+                    "insumo_id": 6,
+                    "cantidad": 1.0
+                },
+                {
+                    "rel_id": 7,
+                    "insumo_id": 7,
+                    "cantidad": 1.0
+                },
+                {
+                    "rel_id": 8,
+                    "insumo_id": 8,
+                    "cantidad": 1.0
+                }
+            ],
+            "fecha_creacion": "2026-10-26 16:10:12"
         }
     ],
-    "next_insumo_id": 4,
-    "next_plato_id": 3,
-    "next_rel_id": 3
+    "next_insumo_id": 10,
+    "next_plato_id": 4,
+    "next_rel_id": 5
 }
