@@ -27,13 +27,14 @@ todo a mano.
 
 ```
 SmartCost/
-├── main.py                        # punto de entrada: arma el ScreenManager y el tema
-├── lib/                            # lógica de negocio, sin interfaz
-│   ├── storage.py                  # acceso a SQLite (CRUD de insumos, platos, receta)
+├── main.py                    # punto de entrada: arma el ScreenManager y el tema
+├── models/                            # lógica de negocio, sin interfaz
+│   ├── storage.py                 # acceso a SQLite (CRUD de insumos, platos, receta)
+├── services/                            # lógica de negocio, sin interfaz
 │   ├── calculo_costos.py           # fórmulas: costo real, margen, clasificación
 │   ├── plantillas.py               # recetas típicas precargadas
 │   └── combinaciones.py            # ingredientes base para el generador de combos
-├── screens/
+├── views/
 │   ├── home_screen.py              # pantalla de inicio (grid de 6 tarjetas)
 │   ├── module_screen.py            # pantalla base placeholder (Config, Acerca de)
 │   ├── recetas_screen.py           # "Mis Recetas": CRUD insumos + platos + fotos
@@ -44,7 +45,7 @@ SmartCost/
 ├── widgets/
 │   └── module_card.py              # tarjeta reutilizable de la pantalla de inicio
 ├── data/
-│   ├── app.db                      # base de datos SQLite (se crea sola)
+│   ├── app.json                    
 │   └── images/                     # fotos de platos (se crean solas al elegir una)
 ├── requirements.txt
 └── README.md
