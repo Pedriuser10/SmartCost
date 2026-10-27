@@ -71,6 +71,46 @@
             "precio": 3000.0,
             "merma_pct": 0.0,
             "fecha_creacion": "2026-10-26 16:01:02"
+        },
+        {
+            "id": 10,
+            "nombre": "Carne molida",
+            "unidad": "kg",
+            "precio": 6500,
+            "merma_pct": 0.05,
+            "fecha_creacion": "2026-10-27 14:44:20"
+        },
+        {
+            "id": 11,
+            "nombre": "Pan hamburguesa",
+            "unidad": "un",
+            "precio": 350,
+            "merma_pct": 0.02,
+            "fecha_creacion": "2026-10-27 14:44:20"
+        },
+        {
+            "id": 12,
+            "nombre": "Queso gauda",
+            "unidad": "kg",
+            "precio": 7800,
+            "merma_pct": 0.03,
+            "fecha_creacion": "2026-10-27 14:44:20"
+        },
+        {
+            "id": 13,
+            "nombre": "Tomate",
+            "unidad": "kg",
+            "precio": 1200,
+            "merma_pct": 0.1,
+            "fecha_creacion": "2026-10-27 14:44:20"
+        },
+        {
+            "id": 14,
+            "nombre": "Lechuga",
+            "unidad": "un",
+            "precio": 900,
+            "merma_pct": 0.08,
+            "fecha_creacion": "2026-10-27 14:44:20"
         }
     ],
     "platos": [
@@ -133,9 +173,44 @@
                 }
             ],
             "fecha_creacion": "2026-10-26 16:10:12"
+        },
+        {
+            "id": 4,
+            "nombre": "Hamburguesa Clásica",
+            "precio_venta": 4500.0,
+            "mano_obra": 800.0,
+            "imagen": "HamburguesaClasica.png",
+            "ingredientes": [
+                {
+                    "rel_id": 5,
+                    "insumo_id": 10,
+                    "cantidad": 0.15
+                },
+                {
+                    "rel_id": 6,
+                    "insumo_id": 11,
+                    "cantidad": 1
+                },
+                {
+                    "rel_id": 7,
+                    "insumo_id": 12,
+                    "cantidad": 0.03
+                },
+                {
+                    "rel_id": 8,
+                    "insumo_id": 13,
+                    "cantidad": 0.03
+                },
+                {
+                    "rel_id": 9,
+                    "insumo_id": 14,
+                    "cantidad": 0.2
+                }
+            ],
+            "fecha_creacion": "2026-10-27 14:44:20"
         }
     ],
-    "next_insumo_id": 10,
-    "next_plato_id": 4,
-    "next_rel_id": 5
+    "next_insumo_id": 15,
+    "next_plato_id": 5,
+    "next_rel_id": 10
 }
