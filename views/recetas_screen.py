@@ -14,10 +14,9 @@ from kivymd.uix.menu import MDDropdownMenu
 from kivymd.uix.filemanager import MDFileManager
 from models import storage
 from kivymd.uix.button import MDButton, MDButtonText, MDIconButton
+from views.utils import set_texto_boton
 
-IMAGENES_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "images"
-)
+IMAGENES_DIR = storage.IMAGENES_DIR  # carpeta única de fotos: data/imagenes
 
 class RecetasScreen(MDScreen):
     def __init__(self, **kwargs):
@@ -44,14 +43,15 @@ class RecetasScreen(MDScreen):
         )
 
         tabs = MDBoxLayout(size_hint_y=None, height=dp(48), spacing=dp(8))
+        # En KivyMD 2.0 el color del texto se cambia en el MDButtonText, no en el MDButton
+        self.txt_insumos = MDButtonText(text="INSUMOS")
+        self.txt_platos = MDButtonText(text="PLATOS")
         self.btn_insumos = MDButton(
-            MDButtonText(text="INSUMOS", size_hint_y=None, height=dp(48)),
-            style="text", size_hint_y=None, height=dp(48),
+            self.txt_insumos, style="text", size_hint_y=None, height=dp(48),
             on_release=lambda x: self.cambiar_modo("insumos")
         )
         self.btn_platos = MDButton(
-            MDButtonText(text="PLATOS", size_hint_y=None, height=dp(48)),
-            style="text", size_hint_y=None, height=dp(48),
+            self.txt_platos, style="text", size_hint_y=None, height=dp(48),
             on_release=lambda x: self.cambiar_modo("platos")
         )
         tabs.add_widget(self.btn_insumos)
@@ -77,10 +77,10 @@ class RecetasScreen(MDScreen):
     def _marcar_tab_activo(self):
         activo = (0.2, 0.6, 1, 1)
         inactivo = (0.6, 0.6, 0.6, 1)
-        self.btn_insumos.theme_text_color = "Custom"
-        self.btn_platos.theme_text_color = "Custom"
-        self.btn_insumos.text_color = activo if self.modo == "insumos" else inactivo
-        self.btn_platos.text_color = activo if self.modo == "platos" else inactivo
+        self.txt_insumos.theme_text_color = "Custom"
+        self.txt_platos.theme_text_color = "Custom"
+        self.txt_insumos.text_color = activo if self.modo == "insumos" else inactivo
+        self.txt_platos.text_color = activo if self.modo == "platos" else inactivo
 
     def cambiar_modo(self, modo):
         self.modo = modo
@@ -112,8 +112,9 @@ class RecetasScreen(MDScreen):
 
     def _fila(self, texto, on_tap, imagen=None):
         fila = MDBoxLayout(orientation="horizontal", size_hint_y=None, height=dp(44), spacing=dp(8))
-        if imagen and os.path.exists(imagen):
-            fila.add_widget(FitImage(source=imagen, size_hint=(None, None), size=(dp(40), dp(40)), radius=[dp(6)]))
+        ruta = storage.ruta_imagen(imagen)
+        if ruta:
+            fila.add_widget(FitImage(source=ruta, size_hint=(None, None), size=(dp(40), dp(40)), radius=[dp(6)]))
         lbl = MDLabel(text=texto, theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1))
         fila.add_widget(lbl)
         btn = MDIconButton(icon="pencil", theme_icon_color="Custom", icon_color=(0.6, 0.6, 0.6, 1))
@@ -144,7 +145,7 @@ class RecetasScreen(MDScreen):
         )
         self.merma_field = MDTextField(
             MDTextFieldHintText(text="Merma (%)"),
-            text=str(insumo["merma_pct"] * 100) if insumo else "0",
+            text=str(round(insumo["merma_pct"] * 100, 2)) if insumo else "0",
         )
         content = MDBoxLayout(orientation="vertical", spacing=dp(10), size_hint_y=None, height=dp(220))
         for f in (self.nombre_field, self.unidad_field, self.precio_field, self.merma_field):
@@ -216,7 +217,7 @@ class RecetasScreen(MDScreen):
         )
 
         self.preview_imagen = FitImage(
-            source=self._imagen_seleccionada if self._imagen_seleccionada else "",
+            source=storage.ruta_imagen(self._imagen_seleccionada) or "",
             size_hint_y=None, height=dp(90), radius=[dp(8)],
         )
         elegir_foto_btn = MDButton(
@@ -276,7 +277,8 @@ class RecetasScreen(MDScreen):
                 select_path=self._imagen_elegida,
                 preview=True,
             )
-        self.file_manager.show(os.path.abspath("SmartCost/data/imagenes"))
+        os.makedirs(IMAGENES_DIR, exist_ok=True)
+        self.file_manager.show(IMAGENES_DIR)
 
     def _imagen_elegida(self, ruta):
         self.file_manager.close()
@@ -287,10 +289,11 @@ class RecetasScreen(MDScreen):
         nuevo_nombre = os.path.basename(ruta)
         destino = os.path.join(IMAGENES_DIR, nuevo_nombre)
 
-        if ruta != destino:
+        if os.path.abspath(ruta) != os.path.abspath(destino):
             shutil.copy(ruta, destino)
 
-        self._imagen_seleccionada = f"SmartCost/data/imagenes/{nuevo_nombre}"
+        # En el JSON se guarda solo el nombre del archivo; storage.ruta_imagen() arma la ruta
+        self._imagen_seleccionada = nuevo_nombre
         self.preview_imagen.source = destino
 
     def _eliminar_plato(self, plato_id):
@@ -311,7 +314,7 @@ class RecetasScreen(MDScreen):
         self.cantidad_field = MDTextField(MDTextFieldHintText(text="Cantidad a usar"), input_filter="float")
         
         self.selector_insumo_btn = MDButton(
-            MDButtonText(text="Elegir insumo", size_hint_y=None, height=dp(48)),
+            MDButtonText(text="Elegir insumo"),
             on_release=self._abrir_selector_insumo,
             pos_hint={"center_x": 0.5}
         )
@@ -374,7 +377,7 @@ class RecetasScreen(MDScreen):
 
     def _seleccionar_insumo(self, insumo):
         self._insumo_seleccionado = insumo
-        self.selector_insumo_btn.text = insumo["nombre"]
+        set_texto_boton(self.selector_insumo_btn, insumo["nombre"])
         self.menu.dismiss()
 
     def _agregar_insumo_a_receta(self):
@@ -397,7 +400,7 @@ class RecetasScreen(MDScreen):
         self.estado_label.text = f"✓ {self._insumo_seleccionado['nombre']} agregado."
         self.estado_label.text_color = (0.2, 0.8, 0.4, 1)
         self.cantidad_field.text = ""
-        self.selector_insumo_btn.text = "Elegir insumo"
+        set_texto_boton(self.selector_insumo_btn, "Elegir insumo")
         self._insumo_seleccionado = None
         self._refrescar_lista_insumos_receta()
 

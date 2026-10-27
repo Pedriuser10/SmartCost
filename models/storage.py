@@ -2,7 +2,24 @@ import json
 import os
 from datetime import datetime
 
-DATA_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "app.json")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_FILE = os.path.join(BASE_DIR, "data", "app.json")
+IMAGENES_DIR = os.path.join(BASE_DIR, "data", "imagenes")
+
+
+def ruta_imagen(valor):
+    """Devuelve la ruta absoluta de la foto de un plato, o None si no existe.
+
+    En el JSON basta guardar el nombre del archivo (ej. "Ceviche.png"); la
+    carpeta se resuelve siempre desde aquí, así funciona sin importar desde
+    qué carpeta ejecutes `python main.py`. Acepta también rutas viejas como
+    "SmartCost/data/imagenes/Ceviche.png" (usa solo el nombre del archivo).
+    """
+    if not valor:
+        return None
+    ruta = os.path.join(IMAGENES_DIR, os.path.basename(valor))
+    return ruta if os.path.exists(ruta) else None
+
 
 class Insumo:
     def __init__(self, id_insumo, nombre, unidad, precio, merma_pct, fecha_creacion=None):
@@ -20,8 +37,9 @@ class Insumo:
             "unidad": self.unidad,
             "precio": self.precio,
             "merma_pct": self.merma_pct,
-            "fecha_creacion": self.fecha_creacion
+            "fecha_creacion": self.fecha_creacion,
         }
+
 
 class Plato:
     def __init__(self, id_plato, nombre, precio_venta, mano_obra, imagen=None, ingredientes=None, fecha_creacion=None):
@@ -41,8 +59,9 @@ class Plato:
             "mano_obra": self.mano_obra,
             "imagen": self.imagen,
             "ingredientes": self.ingredientes,
-            "fecha_creacion": self.fecha_creacion
+            "fecha_creacion": self.fecha_creacion,
         }
+
 
 # ---------- HELPERS JSON ----------
 
@@ -52,16 +71,19 @@ def _cargar_datos():
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
+
 def _guardar_datos(datos):
     os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
     with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(datos, f, indent=4)
+        json.dump(datos, f, indent=4, ensure_ascii=False)
+
 
 # ---------- INSUMOS ----------
 
 def get_insumos():
     datos = _cargar_datos()
-    return sorted(datos["insumos"], key=lambda x: x["nombre"])
+    return sorted(datos["insumos"], key=lambda x: x["nombre"].lower())
+
 
 def add_insumo(nombre, unidad, precio, merma_pct):
     datos = _cargar_datos()
@@ -69,6 +91,7 @@ def add_insumo(nombre, unidad, precio, merma_pct):
     datos["insumos"].append(nuevo_insumo.to_dict())
     datos["next_insumo_id"] += 1
     _guardar_datos(datos)
+
 
 def update_insumo(insumo_id, nombre, unidad, precio, merma_pct):
     datos = _cargar_datos()
@@ -81,6 +104,7 @@ def update_insumo(insumo_id, nombre, unidad, precio, merma_pct):
             break
     _guardar_datos(datos)
 
+
 def delete_insumo(insumo_id):
     datos = _cargar_datos()
     datos["insumos"] = [i for i in datos["insumos"] if i["id"] != insumo_id]
@@ -89,11 +113,13 @@ def delete_insumo(insumo_id):
         plato["ingredientes"] = [ing for ing in plato["ingredientes"] if ing["insumo_id"] != insumo_id]
     _guardar_datos(datos)
 
+
 # ---------- PLATOS ----------
 
 def get_platos():
     datos = _cargar_datos()
-    return sorted(datos["platos"], key=lambda x: x["nombre"])
+    return sorted(datos["platos"], key=lambda x: x["nombre"].lower())
+
 
 def get_plato(plato_id):
     datos = _cargar_datos()
@@ -102,12 +128,13 @@ def get_plato(plato_id):
             return plato
     return None
 
+
 def get_insumos_de_plato(plato_id):
     datos = _cargar_datos()
     plato = get_plato(plato_id)
     if not plato:
         return []
-    
+
     resultado = []
     for ing in plato["ingredientes"]:
         for insumo in datos["insumos"]:
@@ -119,6 +146,7 @@ def get_insumos_de_plato(plato_id):
                 break
     return resultado
 
+
 def add_plato(nombre, precio_venta, mano_obra, imagen=None):
     datos = _cargar_datos()
     nuevo_plato = Plato(datos["next_plato_id"], nombre, precio_venta, mano_obra, imagen)
@@ -127,6 +155,7 @@ def add_plato(nombre, precio_venta, mano_obra, imagen=None):
     datos["next_plato_id"] += 1
     _guardar_datos(datos)
     return plato_id
+
 
 def update_plato(plato_id, nombre, precio_venta, mano_obra, imagen=None):
     datos = _cargar_datos()
@@ -140,10 +169,12 @@ def update_plato(plato_id, nombre, precio_venta, mano_obra, imagen=None):
             break
     _guardar_datos(datos)
 
+
 def delete_plato(plato_id):
     datos = _cargar_datos()
     datos["platos"] = [p for p in datos["platos"] if p["id"] != plato_id]
     _guardar_datos(datos)
+
 
 def add_insumo_a_plato(plato_id, insumo_id, cantidad):
     datos = _cargar_datos()
@@ -152,11 +183,12 @@ def add_insumo_a_plato(plato_id, insumo_id, cantidad):
             plato["ingredientes"].append({
                 "rel_id": datos["next_rel_id"],
                 "insumo_id": insumo_id,
-                "cantidad": cantidad
+                "cantidad": cantidad,
             })
             datos["next_rel_id"] += 1
             break
     _guardar_datos(datos)
+
 
 def quitar_insumo_de_plato(rel_id):
     datos = _cargar_datos()

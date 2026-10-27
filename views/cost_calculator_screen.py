@@ -7,7 +7,8 @@ from kivymd.uix.label import MDLabel
 from kivymd.uix.menu import MDDropdownMenu
 from kivymd.uix.button import MDButton, MDButtonText
 from models import storage
-from services.calculo_costos import costo_real_plato, margen
+from services.calculo_costos import costo_real_plato, margen, clasificar_margen, COLOR_MARGEN
+from views.utils import set_texto_boton
 
 
 class CostCalculatorScreen(MDScreen):
@@ -18,7 +19,7 @@ class CostCalculatorScreen(MDScreen):
 
         root = MDBoxLayout(orientation="vertical", padding=dp(24), spacing=dp(16))
 
-        back = MDButton (MDButtonText(text="Volver", size_hint_y=None, height=dp(48), theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1)),style="text", size_hint_y=None, height=dp(48))
+        back = MDButton(MDButtonText(text="‹  Volver al inicio"), style="text", size_hint_y=None, height=dp(48))
         back.bind(on_release=lambda *_: setattr(self.manager, "current", "inicio"))
         root.add_widget(back)
 
@@ -34,7 +35,7 @@ class CostCalculatorScreen(MDScreen):
             )
         )
 
-        self.selector_btn = MDButton(MDButtonText(text="Elegir plato", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48))
+        self.selector_btn = MDButton(MDButtonText(text="Elegir plato"), style="text", size_hint_y=None, height=dp(48))
         self.selector_btn.bind(on_release=self._abrir_selector)
         root.add_widget(self.selector_btn)
 
@@ -75,13 +76,13 @@ class CostCalculatorScreen(MDScreen):
     def _seleccionar_plato(self, plato):
         self.menu.dismiss()
         self._plato_actual = plato
-        self.selector_btn.text = plato["nombre"]
+        set_texto_boton(self.selector_btn, plato["nombre"])
         self._mostrar_desglose(plato)
 
     def seleccionar_plato_externo(self, plato):
         """Permite que otra pantalla (ej. Menú Visual) preseleccione un plato al entrar aquí."""
         self._plato_actual = plato
-        self.selector_btn.text = plato["nombre"]
+        set_texto_boton(self.selector_btn, plato["nombre"])
         self._mostrar_desglose(plato)
 
     def _mostrar_desglose(self, plato):
@@ -107,7 +108,7 @@ class CostCalculatorScreen(MDScreen):
             ))
             fila.add_widget(MDLabel(
                 text=f"${subtotal:,.0f}", halign="right",
-                theme_text_color="Custom", text_color=(1, 0, 0, 1),
+                theme_text_color="Custom", text_color=(0.75, 0.2, 0.2, 1),
             ))
             self.resultado_box.add_widget(fila)
 
@@ -121,7 +122,7 @@ class CostCalculatorScreen(MDScreen):
         self.resultado_box.add_widget(MDLabel(
             text=f"Costo real total: ${costo:,.0f}",
             bold=True, size_hint_y=None, height=dp(32),
-            theme_text_color="Custom", text_color=(0, 1, 0, 1),
+            theme_text_color="Custom", text_color=COLOR_MARGEN[clasificar_margen(m)],
         ))
         self.resultado_box.add_widget(MDLabel(
             text=f"Precio de venta: ${plato['precio_venta']:,.0f}   ·   Margen: {m:.1f}%",
