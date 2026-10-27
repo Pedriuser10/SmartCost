@@ -8,6 +8,7 @@ from kivymd.uix.fitimage import FitImage
 from kivy.uix.widget import Widget
 from kivymd.uix.button import MDButton , MDButtonText , MDButtonIcon
 from widgets.module_card import ModuleCard
+from services import auth
 from kivymd.uix.card import MDCard
 
 MODULES = [
@@ -47,6 +48,13 @@ class HomeScreen(MDScreen):
             on_release=lambda x: setattr(self.manager, "current", "configuracion")
         )
         top_bar.add_widget(btn_config)
+        btn_salir = MDButton(
+            MDButtonIcon(icon="logout"),
+            MDButtonText(text="Salir"),
+            style="text",
+            on_release=lambda x: self._cerrar_sesion(),
+        )
+        top_bar.add_widget(btn_salir)
         main_layout.add_widget(top_bar)
 
         # Títulos de la app
@@ -74,3 +82,7 @@ class HomeScreen(MDScreen):
         container.add_widget(grid)
         main_layout.add_widget(container)
         self.add_widget(main_layout)
+
+    def _cerrar_sesion(self):
+        auth.cerrar_sesion()
+        self.manager.current = "login"

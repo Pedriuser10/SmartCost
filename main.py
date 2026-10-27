@@ -1,5 +1,6 @@
 from kivymd.app import MDApp
 from kivy.uix.screenmanager import ScreenManager
+from views.login_screen import LoginScreen
 from views.home_screen import HomeScreen 
 from views.module_screen import ModuleScreen
 from views.cost_calculator_screen import CostCalculatorScreen
@@ -14,7 +15,7 @@ class SmartCostApp(MDApp):
         self.theme_cls.primary_palette = "Blue"
         
         sm = ScreenManager()
-        pantallas = [HomeScreen, CostCalculatorScreen, RecetasScreen, IngenieriaMenuScreen, MenuVisualScreen, PlantillasScreen]
+        pantallas = [LoginScreen, HomeScreen, CostCalculatorScreen, RecetasScreen, IngenieriaMenuScreen, MenuVisualScreen, PlantillasScreen]
 
    
         for pantalla in pantallas:

@@ -1,2 +1,6 @@
 __pycache__/
 *.pyc
+data/usuarios.json
+__pycache__/
+*.pyc
+.venv/
