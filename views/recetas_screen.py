@@ -14,6 +14,7 @@ from kivymd.uix.menu import MDDropdownMenu
 from kivymd.uix.filemanager import MDFileManager
 from models import storage
 from kivymd.uix.button import MDButton, MDButtonText, MDIconButton
+from kivymd.uix.fitimage import FitImage
 
 IMAGENES_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "images"
@@ -112,8 +113,13 @@ class RecetasScreen(MDScreen):
 
     def _fila(self, texto, on_tap, imagen=None):
         fila = MDBoxLayout(orientation="horizontal", size_hint_y=None, height=dp(44), spacing=dp(8))
-        if imagen and os.path.exists(imagen):
-            fila.add_widget(FitImage(source=imagen, size_hint=(None, None), size=(dp(40), dp(40)), radius=[dp(6)]))
+
+        if imagen :
+            nombre_archivo = os.path.basename(imagen)
+            ruta_imagen = os.path.join(IMAGENES_DIR, nombre_archivo)
+            if os.path.exists(ruta_imagen):
+                fila.add_widget(FitImage(source=ruta_imagen, size_hint_x=None, width=dp(44), radius=[dp(8)]))
+                
         lbl = MDLabel(text=texto, theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1))
         fila.add_widget(lbl)
         btn = MDIconButton(icon="pencil", theme_icon_color="Custom", icon_color=(0.6, 0.6, 0.6, 1))
