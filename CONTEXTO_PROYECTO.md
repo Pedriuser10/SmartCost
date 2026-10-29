@@ -241,7 +241,7 @@ implementada todavía.
 3. **Edición de cantidades en recetas**: hoy obliga a borrar y volver a agregar, con
    riesgo de errores.
 4. **Auditoría de costos, unidades y márgenes**: un cálculo erróneo invalida el propósito
-   de la app. Ver el riesgo prioritario de la sección 8.8 (unidad y envase mezclados).
+   de la app. Ver el riesgo prioritario de la sección 8.9 (unidad y envase mezclados).
 5. **Pruebas automáticas en `tests/`** para persistencia y cálculos, que protejan los
    puntos 2–4.
 6. **Decisión sobre `fe5204e` en `main`** antes de abrir el PR de la rama de avances.
@@ -265,10 +265,12 @@ las fases siguientes.
 Convención usada en esta sección:
 
 - **Aprobado:** decisión explícita del autor del proyecto.
+- **Requisito futuro:** obligación aprobada que deberá cumplir la implementación; todavía
+  no existe en el código.
 - **Propuesta:** recomendación técnica aún no aprobada.
 - **Pendiente:** cuestión abierta sin decisión.
 
-Las decisiones D1–D6 fueron aprobadas el 2026-10-29.
+Las decisiones D1–D7 fueron aprobadas el 2026-10-29.
 
 ### 8.1 D1. Roles y permisos (aprobado)
 
@@ -398,7 +400,7 @@ Ejemplo: un envase de 10 kg cuesta $5.000 → $500 por kg → $0,50 por g; si un
   hasta disponer de una comparación verificable entre los resultados anteriores y los
   nuevos.
 - **Pendiente** (no aprobado): campos definitivos, precisión numérica y tratamiento de
-  insumos sin presentación de compra (ver 8.9).
+  insumos sin presentación de compra (ver 8.10).
 - **Propuesta:** en el insumo, `unidad_id`, `presentacion_contenido`,
   `presentacion_unidad_id` y `presentacion_precio`; en el ingrediente, `cantidad` y
   `unidad_id`. Guardar la cantidad tal como se ingresó y calcular la conversión.
@@ -421,10 +423,113 @@ Supabase:
    validación.
 9. La política D3 de duplicados sigue vigente.
 
-### 8.7 Otras líneas de diseño (propuestas, no aprobadas)
+### 8.7 D7. Funcionamiento sin conexión y sincronización posterior (aprobado)
+
+**Nada de esto está implementado.** Hoy la app guarda sus datos en JSON locales
+(sección 3.1); no tiene SQLite, cola de sincronización ni conexión con Supabase. D7 fija
+el comportamiento que deberá tener la arquitectura futura.
+
+**Operaciones disponibles sin conexión (aprobado)**
+
+Sin internet, SmartCost debe permitir sobre los datos del negocio:
+
+- Crear, consultar, editar y eliminar ingredientes (insumos).
+- Crear, consultar, editar y eliminar platos.
+- Gestionar las relaciones entre ingredientes y recetas.
+- Registrar y actualizar los precios de compra propios del negocio.
+- Calcular los costos de las recetas con los datos locales disponibles.
+
+Condiciones:
+
+- Las eliminaciones respetan las políticas ya acordadas en D1–D6 (roles, dependencias,
+  revisión de recetas y borrado lógico). D7 no introduce excepciones. La política para
+  insumos usados en recetas sigue pendiente (8.10) y D7 no la resuelve.
+- Cada operación está sujeta al rol del usuario en ese negocio (D1); por ejemplo, un
+  `lector` tampoco puede editar sin conexión (derivado de D1). Cómo se conoce y se
+  actualiza el rol mientras no hay conexión queda pendiente (8.10).
+
+**SQLite como base local (aprobado)**
+
+- SQLite será la base operativa local de la arquitectura futura.
+- Requisito futuro: los cambios se conservan aunque la app se cierre, el teléfono se
+  reinicie o el dispositivo pase un período prolongado sin conexión.
+- La migración desde los JSON actuales se diseñará e implementará por separado, bajo D3 y
+  D6. No forma parte de D7 y no se ha realizado.
+
+**Cola persistente de sincronización (requisito futuro)**
+
+Los cambios locales se registrarán en una cola persistente que sobreviva al cierre de la
+app y al reinicio del dispositivo. La implementación deberá contemplar:
+
+- Identificador único por operación.
+- Reintentos ante errores temporales de red.
+- Idempotencia: una operación reintentada no se aplica dos veces.
+- Estados claros: pendiente, en proceso, sincronizada, con error y con conflicto.
+- Registro de errores que permita diagnosticar y reintentar.
+- Orden y dependencias entre operaciones relacionadas (por ejemplo, un ingrediente no se
+  envía antes que su plato y su insumo).
+- Recuperación segura si la app se cierra durante una sincronización.
+- Eliminaciones y cambios de permisos tratados sin resucitar registros eliminados ni
+  perder operaciones pendientes.
+
+Los detalles técnicos de 8.8 (estados, espera creciente, versiones) son propuestas que
+podrían cumplir estos requisitos; no están aprobados.
+
+**Supabase/PostgreSQL como servidor central (requisito futuro)**
+
+Con conexión, SmartCost sincronizará los cambios autorizados y descargará los cambios del
+negocio y del usuario autenticados, respetando:
+
+- Aislamiento de los datos por negocio.
+- Roles y permisos de D1.
+- Autorización validada en el servidor (políticas RLS de Supabase y demás controles).
+- Prohibición de incluir claves privilegiadas, como `service_role`, en la app.
+- Manejo de sesiones caducadas, permisos revocados y errores de autenticación.
+- Una operación no se considera sincronizada hasta recibir confirmación válida del
+  servidor.
+
+**Conflictos entre dispositivos (aprobado)**
+
+Si dos dispositivos modifican el mismo registro sin conexión:
+
+- No se sobrescriben datos silenciosamente.
+- Se detecta que la versión local y la remota divergieron.
+- Se conserva información suficiente para explicar el conflicto.
+- Un usuario autorizado lo resuelve de forma explícita.
+- Las modificaciones pendientes no se pierden durante el proceso.
+
+Propuesta (no aprobada): combinar automáticamente los cambios en campos diferentes solo
+cuando se pueda demostrar que no hay incompatibilidades; los cambios concurrentes sobre el
+mismo campo siempre se revisan. Pendiente: qué campos nunca se combinan automáticamente y
+quién resuelve cada tipo de conflicto (8.10).
+
+**Precios propios de cada negocio (aprobado)**
+
+- Cada propietario o administrador autorizado puede registrar y actualizar los precios de
+  compra de su negocio.
+- Los precios de referencia del mercado chileno, si se incorporan más adelante, serán
+  opcionales y estarán separados de los precios propios: no sustituyen automáticamente los
+  precios de compra del negocio ni se comparten entre negocios sin autorización.
+- Pendiente de aclarar: la matriz de D1 permite al `editor` modificar insumos; falta
+  decidir si eso incluye sus precios de compra (8.10). D1 no se ha modificado.
+
+**Estado de sincronización en la interfaz (requisito futuro)**
+
+La interfaz futura deberá informar claramente:
+
+- Si el dispositivo está sin conexión.
+- Cuántos cambios están pendientes.
+- Si hay una sincronización en curso.
+- Cuándo se completó la última sincronización satisfactoria.
+- Si hay errores o conflictos que requieren atención.
+
+No se han diseñado pantallas ni controles.
+
+### 8.8 Otras líneas de diseño (propuestas, no aprobadas)
 
 Presentadas en la fase de diseño; sirven de referencia, pero ninguna está aprobada para
-implementarse:
+implementarse. D7 (8.7) convirtió en requisito la cola persistente y la detección de
+conflictos, pero no los detalles técnicos de esta lista:
 
 - Identificadores UUID generados en el cliente; los IDs enteros actuales se convierten
   mediante un mapa de equivalencias persistente.
@@ -439,7 +544,7 @@ implementarse:
 - Conexión REST con la biblioteca estándar (`urllib`) en lugar de `supabase-py`, cuya
   dependencia `pydantic-core` (Rust) probablemente no compila con python-for-android.
 
-### 8.8 Riesgo prioritario: unidad de medida y presentación mezcladas
+### 8.9 Riesgo prioritario: unidad de medida y presentación mezcladas
 
 El campo `unidad` actual es texto libre y **mezcla unidad de medida y presentación de
 compra**. En los datos de ejemplo y en las plantillas aparecen valores como `10kg`,
@@ -457,7 +562,7 @@ unitario.
 - Requiere un diagnóstico de solo lectura y la confirmación del usuario caso por caso
   (D6) antes de cualquier conversión.
 
-### 8.9 Pendientes técnicos (sin decisión)
+### 8.10 Pendientes técnicos (sin decisión)
 
 **Unidades y costos**
 
@@ -492,16 +597,35 @@ unitario.
 - Quién resuelve los conflictos de sincronización.
 - Arquitectura futura de menús (8.2).
 
-### 8.10 Riesgos conocidos
+**Sin conexión y sincronización (D7)**
+
+- Política de combinación automática de campos distintos y lista de campos que nunca se
+  combinan sin revisión.
+- Cómo se conocen y aplican los roles sin conexión, y qué ocurre con las operaciones
+  hechas offline que el servidor rechace por un permiso revocado.
+- Si el primer uso en un dispositivo exige conexión (inicio de sesión inicial y descarga
+  de datos).
+- Tiempo máximo sin conexión admitido y comportamiento cuando la sesión caduca durante ese
+  período.
+- Momentos de sincronización (al abrir, tras cada cambio, periódica, en segundo plano) y
+  límites de tamaño de la cola.
+- Si las fotos forman parte de la cola de sincronización y cuándo se suben.
+- Si el `editor` puede modificar los precios de compra (D1 frente a D7).
+- Si se conserva el historial de precios de compra o solo el valor vigente.
+- Fuente, frecuencia de actualización y condiciones de uso de los precios de referencia
+  del mercado chileno, si se incorporan.
+
+### 8.11 Riesgos conocidos
 
 - **Seguridad:** error en RLS o triggers que permita escalar privilegios o ver datos de
   otro negocio (incluido Storage); exposición de la clave `service_role`; tokens
   guardados sin protección adicional en el teléfono.
-- **Integridad:** interpretación errónea de unidades (8.8); diferencias de redondeo al
+- **Integridad:** interpretación errónea de unidades (8.9); diferencias de redondeo al
   pasar de `float` a `Decimal`; duplicados creados por CSV o plantillas justo antes de
   migrar; importaciones actuales no atómicas (recetas a medias); fotos huérfanas y rutas
   antiguas en el campo `imagen`.
 - **Sincronización:** cambio de unidad de un insumo mientras otro dispositivo está sin
   conexión; cambios de rol o expulsiones con operaciones pendientes (rechazos que no
   deben perderse en silencio); operaciones encoladas antes de una actualización que
-  cambie el esquema.
+  cambie el esquema; períodos prolongados sin conexión (sesión caducada, gran divergencia
+  entre dispositivos, cola de gran tamaño).
