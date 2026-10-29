@@ -1,6 +1,36 @@
 __pycache__/
 *.pyc
-data/usuarios.json
-__pycache__/
-*.pyc
 .venv/
+venv/
+
+# Datos locales del usuario: cuentas (hashes de contraseñas) y temporales del guardado atómico
+data/usuarios.json
+*.tmp
+
+# Restos del gráfico antiguo de matplotlib (ya no se generan)
+data/imagenes/grafico_*.png
+
+# Compilación Android (Buildozer / python-for-android)
+.buildozer/
+bin/
+*.apk
+*.aab
+build.log
+buildozer.spec.original
+
+# Claves de firma y configuración privada
+*.keystore
+*.jks
+.env
+.env.*
+
+# Respaldos locales (p. ej. copias de los datos del teléfono)
+*_respaldos/
+respaldos/
+*.tar
+
+# Registros de Kivy y archivos del sistema/editor
+.kivy/
+.DS_Store
+.idea/
+.vscode/

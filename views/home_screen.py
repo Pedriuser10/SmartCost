@@ -2,13 +2,15 @@ from kivy.metrics import dp
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.gridlayout import MDGridLayout
+from kivymd.uix.scrollview import MDScrollView
 from kivymd.uix.label import MDLabel
 from kivymd.uix.floatlayout import MDFloatLayout
 from kivymd.uix.fitimage import FitImage
 from kivy.uix.widget import Widget
 from kivymd.uix.button import MDButton , MDButtonText , MDButtonIcon
-from widgets.module_card import ModuleCard
+from widgets.module_card import ModuleCard, ALTO_MINIMO
 from services import auth
+from views import marca
 from kivymd.uix.card import MDCard
 
 MODULES = [
@@ -59,29 +61,47 @@ class HomeScreen(MDScreen):
 
         # Títulos de la app
         header = MDBoxLayout(orientation="vertical", size_hint_y=None, height=dp(80), spacing=dp(4))
-        header.add_widget(MDLabel(text="SmartCost", font_style="Headline", role="medium", bold=True, halign="center"))
+        header.add_widget(MDLabel(text=marca.nombre_marca(), markup=True, font_style="Headline", role="medium", bold=True, halign="center"))
         header.add_widget(MDLabel(text="Calcula, organiza y haz crecer tu negocio", font_style="Title", role="medium", halign="center", theme_text_color="Secondary"))
         main_layout.add_widget(header)
 
         
+        # Alto inicial distinto de 0: el ripple de MDCard crea su FBO con este tamaño (ver
+        # views.utils.alto_segun_contenido); luego el contenedor sigue el alto de la cuadrícula
         container = MDCard(
             style="outlined",
-            line_color=(0.8, 0.85, 0.9, 1), 
+            line_color=(0.8, 0.85, 0.9, 1),
             padding=dp(16),
             radius=[dp(16)],
-            md_bg_color=(0.95, 0.96, 0.99, 1) 
+            md_bg_color=(0.95, 0.96, 0.99, 1),
+            size_hint_y=None, height=dp(100),
         )
-        
-        # Cuadrícula de 6 módulos
-        grid = MDGridLayout(cols=2, spacing=dp(16))
+        container.bind(minimum_height=container.setter("height"))
+
+        # Cuadrícula de 6 módulos; cada fila toma el alto de su tarjeta más alta
+        grid = MDGridLayout(cols=2, spacing=dp(16), size_hint_y=None)
+        grid.bind(minimum_height=grid.setter("height"))
+        self.tarjetas = []
         for title, subtitle, icon, color, screen_name in MODULES:
             card = ModuleCard(title=title, subtitle=subtitle, icon=icon, icon_color=color, md_bg_color=color) # Ajusta los colores pastel en la lista MODULES
             card.bind(on_release=lambda _w, name=screen_name: setattr(self.manager, "current", name))
+            card.bind(minimum_height=self._igualar_filas)
             grid.add_widget(card)
-            
+            self.tarjetas.append(card)
+
         container.add_widget(grid)
-        main_layout.add_widget(container)
+        scroll = MDScrollView(do_scroll_x=False)
+        scroll.add_widget(container)
+        main_layout.add_widget(scroll)
         self.add_widget(main_layout)
+
+    def _igualar_filas(self, *args):
+        """Cada tarjeta mide lo que necesita su texto, y las dos de una fila quedan iguales."""
+        for i in range(0, len(self.tarjetas), 2):
+            fila = self.tarjetas[i:i + 2]
+            alto = max([ALTO_MINIMO] + [t.minimum_height for t in fila])
+            for t in fila:
+                t.height = alto
 
     def _cerrar_sesion(self):
         auth.cerrar_sesion()

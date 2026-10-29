@@ -2,9 +2,12 @@ import json
 import os
 from datetime import datetime
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_FILE = os.path.join(BASE_DIR, "data", "app.json")
-IMAGENES_DIR = os.path.join(BASE_DIR, "data", "imagenes")
+from models import rutas
+
+
+def imagenes_dir():
+    """Carpeta donde se guardan las fotos de los platos (dentro de los datos persistentes)."""
+    return rutas.imagenes_dir()
 
 
 def ruta_imagen(valor):
@@ -14,11 +17,16 @@ def ruta_imagen(valor):
     carpeta se resuelve siempre desde aquí, así funciona sin importar desde
     qué carpeta ejecutes `python main.py`. Acepta también rutas viejas como
     "SmartCost/data/imagenes/Ceviche.png" (usa solo el nombre del archivo).
+    Busca primero en las fotos del usuario y luego en las de ejemplo de la app.
     """
     if not valor:
         return None
-    ruta = os.path.join(IMAGENES_DIR, os.path.basename(valor))
-    return ruta if os.path.exists(ruta) else None
+    nombre = os.path.basename(valor.replace("\\", "/"))
+    for carpeta in (imagenes_dir(), rutas.ORIGEN_IMAGENES_DIR):
+        ruta = os.path.join(carpeta, nombre)
+        if os.path.exists(ruta):
+            return ruta
+    return None
 
 
 class Insumo:
@@ -66,16 +74,17 @@ class Plato:
 # ---------- HELPERS JSON ----------
 
 def _cargar_datos():
-    if not os.path.exists(DATA_FILE):
+    archivo = rutas.archivo_app()
+    if not os.path.exists(archivo):
         return {"insumos": [], "platos": [], "next_insumo_id": 1, "next_plato_id": 1, "next_rel_id": 1}
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
+    with open(archivo, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
 def _guardar_datos(datos):
-    os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(datos, f, indent=4, ensure_ascii=False)
+    archivo = rutas.archivo_app()
+    os.makedirs(os.path.dirname(archivo), exist_ok=True)
+    rutas.escribir_json_atomico(archivo, datos)
 
 
 # ---------- INSUMOS ----------

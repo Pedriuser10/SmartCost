@@ -4,7 +4,7 @@ from kivymd.uix.screen import MDScreen
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.scrollview import MDScrollView
 from kivymd.uix.gridlayout import MDGridLayout
-from kivymd.uix.label import MDLabel
+from kivymd.uix.label import MDLabel, MDIcon
 from kivymd.uix.card import MDCard
 from kivymd.uix.button import MDButton, MDButtonText
 from models import storage
@@ -28,7 +28,9 @@ class DishCard(MDCard):
         if imagen_path:
             foto = FitImage(source=imagen_path, size_hint_y=None, height=dp(140), radius=[dp(14), dp(14), 0, 0])
         else:
-            foto = MDLabel(text="🍽", halign="center", font_style="Display", role="large", size_hint_y=None, height=dp(140), theme_text_color="Custom", text_color=(0.4, 0.4, 0.45, 1))
+            # Ícono en vez de emoji: la fuente de Kivy no trae emojis y se veía un recuadro vacío
+            foto = MDIcon(icon="silverware-fork-knife", halign="center", theme_font_size="Custom", font_size="64sp", size_hint_y=None, height=dp(140),
+                          theme_text_color="Custom", text_color=(0.4, 0.4, 0.45, 1))
         self.add_widget(foto)
         info = MDBoxLayout(orientation="vertical", padding=dp(10), spacing=dp(2))
         info.add_widget(MDLabel(text=plato["nombre"], bold=True, font_style="Title", role="medium", theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1)))
@@ -49,16 +51,17 @@ class MenuVisualScreen(MDScreen):
         self.grid.bind(minimum_height=self.grid.setter("height"))
         scroll.add_widget(self.grid)
         root.add_widget(scroll)
-        self.mensaje_vacio = MDLabel(text="Aún no tienes platos con foto. Agrégalos desde 'Mis Recetas'.", theme_text_color="Secondary")
+        self.mensaje_vacio = MDLabel(text="Aún no tienes platos. Créalos desde 'Mis Recetas'.", theme_text_color="Secondary")
         self.add_widget(root)
         self.bind(width=self.ajustar_columnas)
 
     def ajustar_columnas(self, *args):
-        if self.width > 1200:
+        # En dp, no en píxeles: un teléfono de 1080 px mide ~384 dp y debe verse a 2 columnas
+        if self.width > dp(1200):
             self.grid.cols = 4
-        elif self.width > 800:
+        elif self.width > dp(800):
             self.grid.cols = 3
-        elif self.width > 500:
+        elif self.width > dp(360):
             self.grid.cols = 2
         else:
             self.grid.cols = 1

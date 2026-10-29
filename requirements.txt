@@ -1,6 +1,6 @@
-kivy>=2.3.0
+kivy==2.3.1
 kivymd==2.0.0
 pillow
-materialyoucolor
-asyncgui
-asynckivy
+materialyoucolor==3.0.4
+asyncgui==0.6.3
+asynckivy==0.6.4

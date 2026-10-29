@@ -1,8 +1,11 @@
 from kivy.metrics import dp
+from kivy.uix.widget import Widget
 from kivymd.uix.card import MDCard
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.button import MDIconButton
 from kivymd.uix.label import MDLabel
+
+ALTO_MINIMO = dp(150)  # las tarjetas no se achican por debajo de esto aunque su texto sea corto
 
 
 class ModuleCard(MDCard):
@@ -26,23 +29,31 @@ class ModuleCard(MDCard):
         )
         self.add_widget(top_box)
 
-        self.add_widget(
-            MDLabel(
-                text=title,
-                font_style="Title", role="large",
-                bold=True,
-                theme_text_color="Custom",
-                text_color=(0.1, 0.1, 0.1, 1),
-                size_hint_y=None,
-                height=dp(28),
-            )
+        titulo = MDLabel(
+            text=title,
+            font_style="Title", role="large",
+            bold=True,
+            theme_text_color="Custom",
+            text_color=(0.1, 0.1, 0.1, 1),
+            size_hint_y=None,
+            height=dp(28),
         )
+        # En un teléfono el título puede ocupar dos líneas: crece en vez de pisar el subtítulo
+        titulo.bind(texture_size=lambda t, s: setattr(t, "height", max(dp(28), s[1])))
+        self.add_widget(titulo)
 
-        self.add_widget(
-            MDLabel(
-                text=subtitle,
-                font_style="Label", role="medium",
-                theme_text_color="Custom",
-                text_color=(0.1, 0.1, 0.1, 1),
-            )
-        )                      
+        subtitulo = MDLabel(
+            text=subtitle,
+            font_style="Label", role="medium",
+            theme_text_color="Custom",
+            text_color=(0.1, 0.1, 0.1, 1),
+            size_hint_y=None,
+        )
+        subtitulo.bind(texture_size=lambda t, s: setattr(t, "height", s[1]))
+        self.add_widget(subtitulo)
+        self.add_widget(Widget())  # absorbe el espacio sobrante: el contenido queda arriba
+
+        # El alto lo fija la pantalla de inicio según el contenido (en el teléfono el texto
+        # ocupa más líneas que en el PC), igualando las dos tarjetas de cada fila
+        self.size_hint_y = None
+        self.height = ALTO_MINIMO

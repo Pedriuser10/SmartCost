@@ -1,27 +1,24 @@
-"""Persistencia de usuarios (data/usuarios.json). Solo guarda datos; no valida nada."""
+"""Persistencia de usuarios (<datos>/usuarios.json). Solo guarda datos; no valida nada."""
 import json
 import os
 from datetime import datetime
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-USUARIOS_FILE = os.path.join(BASE_DIR, "data", "usuarios.json")
+from models import rutas
 
 
 def _cargar():
-    if not os.path.exists(USUARIOS_FILE):
+    archivo = rutas.archivo_usuarios()
+    if not os.path.exists(archivo):
         return {}
-    with open(USUARIOS_FILE, "r", encoding="utf-8") as f:
+    with open(archivo, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
 def _guardar(usuarios):
-    os.makedirs(os.path.dirname(USUARIOS_FILE), exist_ok=True)
-    with open(USUARIOS_FILE, "w", encoding="utf-8") as f:
-        json.dump(usuarios, f, indent=4, ensure_ascii=False)
-    try:
-        os.chmod(USUARIOS_FILE, 0o600)  # solo el dueño puede leer/escribir el archivo
-    except OSError:
-        pass
+    archivo = rutas.archivo_usuarios()
+    os.makedirs(os.path.dirname(archivo), exist_ok=True)
+    # privado=True: solo el dueño puede leer/escribir el archivo (permisos 600)
+    rutas.escribir_json_atomico(archivo, usuarios, privado=True)
 
 
 def get_usuario(nombre):
