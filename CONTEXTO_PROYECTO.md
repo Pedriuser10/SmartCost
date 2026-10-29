@@ -270,7 +270,10 @@ Convención usada en esta sección:
 - **Propuesta:** recomendación técnica aún no aprobada.
 - **Pendiente:** cuestión abierta sin decisión.
 
-Las decisiones D1–D7 fueron aprobadas el 2026-10-29.
+Las decisiones D1–D7 fueron aprobadas el 2026-10-29. El mismo día se aprobaron tres
+ampliaciones, documentadas dentro de la decisión a la que pertenecen: D1.1 (precios de
+compra del editor, en 8.1), D7.1 (apertura y uso sin conexión, en 8.7) y D7.2 (resolución
+manual de conflictos, en 8.7).
 
 ### 8.1 D1. Roles y permisos (aprobado)
 
@@ -285,14 +288,24 @@ Las decisiones D1–D7 fueron aprobadas el 2026-10-29.
   - `administrador`: gestiona insumos, platos y recetas; gestiona miembros y permisos
     dentro de los límites que defina el propietario; no puede transferir la propiedad ni
     eliminar o reemplazar al propietario.
-  - `editor`: crea y modifica insumos, platos y recetas; no administra miembros; sus
-    eliminaciones respetan las reglas de integridad y recuperación.
+  - `editor`: crea y modifica insumos, platos y recetas; registra, crea y actualiza los
+    precios de compra de los insumos (D1.1); no administra miembros; sus eliminaciones
+    respetan las reglas de integridad y recuperación.
   - `lector`: solo consulta la información autorizada.
 - Protecciones obligatorias:
   - Todo negocio conserva **al menos un propietario**.
   - Nadie puede asignarse ni asignar el rol `propietario` fuera del procedimiento de
     transferencia (protección contra escalada de privilegios).
   - El rol `lector` no tiene ninguna política de escritura.
+
+**D1.1. Precios de compra del editor (aprobado, 2026-10-29)**
+
+- El `editor` puede registrar, crear y actualizar los precios de compra de los insumos de
+  su negocio, además de las operaciones que ya le permite D1.
+- Solo dentro de los negocios en los que es miembro con rol `editor` o superior: el
+  aislamiento entre negocios se mantiene.
+- No implica ningún permiso para gestionar usuarios, cambiar roles ni administrar el
+  negocio.
 
 **Matriz de permisos.** ✅ aprobado · ❌ prohibido (aprobado) · ➜ derivado de lo aprobado,
 falta confirmarlo · ⏳ pendiente.
@@ -316,6 +329,7 @@ falta confirmarlo · ⏳ pendiente.
 | Restaurar registros eliminados | ⏳ | ⏳ | ⏳ | ❌ |
 | Eliminación definitiva | ❌ desde la app; solo limpieza en servidor (plazo ⏳) | ❌ | ❌ | ❌ |
 | Importar CSV o aplicar plantillas | ✅ | ✅ | ✅ ➜ | ❌ |
+| Registrar, crear y actualizar precios de compra de insumos (D1.1) | ✅ | ✅ | ✅ | ❌ |
 | Subir o cambiar la foto de un plato | ✅ | ✅ | ✅ ➜ | ❌ |
 | Ver costos y márgenes | ✅ | ✅ | ✅ ➜ | ⏳ |
 | Resolver conflictos de sincronización | ✅ | ✅ | ⏳ | ❌ |
@@ -445,8 +459,28 @@ Condiciones:
   revisión de recetas y borrado lógico). D7 no introduce excepciones. La política para
   insumos usados en recetas sigue pendiente (8.10) y D7 no la resuelve.
 - Cada operación está sujeta al rol del usuario en ese negocio (D1); por ejemplo, un
-  `lector` tampoco puede editar sin conexión (derivado de D1). Cómo se conoce y se
-  actualiza el rol mientras no hay conexión queda pendiente (8.10).
+  `lector` tampoco puede editar sin conexión (derivado de D1). Sin conexión se aplica el
+  rol conocido localmente (D7.1); el mecanismo para actualizarlo o invalidarlo queda
+  pendiente (8.10).
+
+**D7.1. Apertura y uso sin conexión (aprobado, 2026-10-29)**
+
+- Un usuario que ya inició sesión en el dispositivo puede volver a abrir SmartCost sin
+  internet y trabajar con los datos locales disponibles.
+- El acceso sin conexión se basa en una **sesión establecida previamente** en ese
+  dispositivo y en los **datos locales**. El primer inicio de sesión en un dispositivo
+  requiere conexión: no se promete acceso offline sin una sesión previa.
+- Se distinguen dos cosas:
+  - **Abrir la app:** permitido con una sesión previa, aunque no haya conexión.
+  - **Operar:** cada operación local se permite según el rol del usuario **conocido
+    localmente** en ese negocio (D1).
+- Los permisos del servidor siguen siendo la autoridad para las operaciones remotas: lo
+  permitido localmente puede ser rechazado al sincronizar.
+- Requisito futuro: si la sesión caduca o el servidor rechaza una operación, las
+  operaciones pendientes se conservan; el rechazo se muestra al usuario y se resuelve sin
+  perder silenciosamente los datos locales.
+- Pendientes de seguridad (8.10): tiempo de validez del acceso sin conexión, mecanismo de
+  revocación de sesiones y de roles, y actualización del rol conocido localmente.
 
 **SQLite como base local (aprobado)**
 
@@ -498,20 +532,35 @@ Si dos dispositivos modifican el mismo registro sin conexión:
 - Un usuario autorizado lo resuelve de forma explícita.
 - Las modificaciones pendientes no se pierden durante el proceso.
 
+**D7.2. Resolución manual de conflictos (aprobado, 2026-10-29)**
+
+Cuando dos dispositivos modifican el mismo registro y las versiones divergen:
+
+- SmartCost detecta el conflicto y muestra los valores relevantes de la versión local y
+  de la versión del servidor.
+- Un usuario autorizado elige explícitamente qué versión conservar.
+- No se sobrescriben cambios silenciosamente.
+- La resolución registra qué versión se eligió, y la decisión se sincroniza de forma
+  consistente.
+- Si el registro vuelve a cambiar mientras se resuelve el conflicto, se detecta y se
+  solicita una nueva revisión.
+
+Todo lo anterior es requisito futuro: no existe en el código.
+
 Propuesta (no aprobada): combinar automáticamente los cambios en campos diferentes solo
 cuando se pueda demostrar que no hay incompatibilidades; los cambios concurrentes sobre el
-mismo campo siempre se revisan. Pendiente: qué campos nunca se combinan automáticamente y
-quién resuelve cada tipo de conflicto (8.10).
+mismo campo siempre se revisan. D7.2 no aprueba esta combinación automática. Pendiente:
+qué campos nunca se combinan automáticamente, qué roles resuelven cada tipo de conflicto
+y cómo se registra la resolución (8.10).
 
 **Precios propios de cada negocio (aprobado)**
 
-- Cada propietario o administrador autorizado puede registrar y actualizar los precios de
-  compra de su negocio.
+- Cada propietario, administrador o editor autorizado puede registrar y actualizar los
+  precios de compra de su negocio (D1.1), solo dentro de los negocios en los que tiene
+  ese rol.
 - Los precios de referencia del mercado chileno, si se incorporan más adelante, serán
   opcionales y estarán separados de los precios propios: no sustituyen automáticamente los
   precios de compra del negocio ni se comparten entre negocios sin autorización.
-- Pendiente de aclarar: la matriz de D1 permite al `editor` modificar insumos; falta
-  decidir si eso incluye sus precios de compra (8.10). D1 no se ha modificado.
 
 **Estado de sincronización en la interfaz (requisito futuro)**
 
@@ -599,27 +648,37 @@ unitario.
 
 **Sin conexión y sincronización (D7)**
 
-- Política de combinación automática de campos distintos y lista de campos que nunca se
-  combinan sin revisión.
-- Cómo se conocen y aplican los roles sin conexión, y qué ocurre con las operaciones
-  hechas offline que el servidor rechace por un permiso revocado.
-- Si el primer uso en un dispositivo exige conexión (inicio de sesión inicial y descarga
-  de datos).
-- Tiempo máximo sin conexión admitido y comportamiento cuando la sesión caduca durante ese
-  período.
+- Política de combinación automática de campos distintos (propuesta no aprobada; D7.2) y
+  lista de campos que nunca se combinan sin revisión.
+- Qué roles pueden resolver cada tipo de conflicto (D7.2 exige un usuario autorizado; la
+  celda del `editor` sigue ⏳ en 8.1).
+- Cómo se registra la resolución de un conflicto (historial o auditoría, visibilidad) y
+  si se permite combinar manualmente valores de ambas versiones o solo elegir una.
+- Cómo se presentan y resuelven las operaciones hechas sin conexión que el servidor
+  rechace (D7.1 exige conservarlas y mostrar el rechazo; falta definir el flujo).
 - Momentos de sincronización (al abrir, tras cada cambio, periódica, en segundo plano) y
   límites de tamaño de la cola.
 - Si las fotos forman parte de la cola de sincronización y cuándo se suben.
-- Si el `editor` puede modificar los precios de compra (D1 frente a D7).
 - Si se conserva el historial de precios de compra o solo el valor vigente.
 - Fuente, frecuencia de actualización y condiciones de uso de los precios de referencia
   del mercado chileno, si se incorporan.
+
+**Seguridad del acceso sin conexión (D7.1)**
+
+- Tiempo de validez del acceso sin conexión (no definido; no se debe inventar).
+- Mecanismo definitivo de revocación de sesiones y de roles, y cómo se aplica a un
+  dispositivo que sigue sin conexión.
+- Cómo y cuándo se actualiza o invalida el rol conocido localmente.
+- Protección de la sesión y de los datos locales en el dispositivo (relacionado con el
+  almacenamiento seguro de credenciales y tokens de "Permisos y cuentas").
 
 ### 8.11 Riesgos conocidos
 
 - **Seguridad:** error en RLS o triggers que permita escalar privilegios o ver datos de
   otro negocio (incluido Storage); exposición de la clave `service_role`; tokens
-  guardados sin protección adicional en el teléfono.
+  guardados sin protección adicional en el teléfono; acceso sin conexión con una sesión
+  previa en un dispositivo perdido o con permisos ya revocados, mientras la revocación no
+  pueda aplicarse sin conexión (D7.1).
 - **Integridad:** interpretación errónea de unidades (8.9); diferencias de redondeo al
   pasar de `float` a `Decimal`; duplicados creados por CSV o plantillas justo antes de
   migrar; importaciones actuales no atómicas (recetas a medias); fotos huérfanas y rutas
