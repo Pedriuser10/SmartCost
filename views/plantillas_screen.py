@@ -5,6 +5,7 @@ Pantalla 'Mis Plantillas':
 3) Accesos rápidos: un puñado de recetas típicas listas con un toque.
 """
 import csv
+import io
 import os
 from collections import OrderedDict
 
@@ -21,7 +22,71 @@ from models import storage
 from services.calculo_costos import costo_real_plato, margen
 from services.plantillas import PLANTILLAS
 from services.combinaciones import PROTEINAS, GUARNICIONES, SALSAS
-from kivymd.uix.button import MDButton , MDButtonText
+from kivymd.uix.button import MDButton, MDButtonText
+from views.utils import set_texto_boton, alto_segun_texto, alto_segun_contenido
+
+COLUMNAS_CSV = {"plato", "precio_venta", "mano_obra", "insumo", "unidad", "precio", "merma_pct", "cantidad"}
+
+
+def leer_csv_recetas(ruta):
+    """Lee el CSV completo y devuelve {plato: {precio_venta, mano_obra, insumos}}.
+
+    Acepta el formato de Excel en español (separador ';' y coma decimal) y archivos en
+    Latin-1. Si una fila es inválida lanza ValueError con su número de línea, sin haber
+    importado nada (se valida todo antes de crear platos).
+    """
+    try:
+        with open(ruta, encoding="utf-8-sig") as f:
+            texto = f.read()
+    except UnicodeDecodeError:
+        with open(ruta, encoding="latin-1") as f:
+            texto = f.read()
+    lineas = texto.splitlines()
+    encabezado = lineas[0] if lineas else ""
+    separador = ";" if encabezado.count(";") > encabezado.count(",") else ","
+
+    def numero(valor, campo, obligatorio=True):
+        valor = (valor or "").strip()
+        if not valor and not obligatorio:
+            return 0.0
+        if separador == ";":
+            valor = valor.replace(",", ".")  # coma decimal
+        try:
+            return float(valor)
+        except ValueError:
+            raise ValueError(f"'{campo}' debe ser un número (valor: '{valor}')") from None
+
+    lector = csv.DictReader(io.StringIO(texto, newline=""), delimiter=separador)  # admite campos entre comillas con saltos de línea
+    columnas = {(c or "").strip().lower() for c in (lector.fieldnames or [])}
+    faltan = COLUMNAS_CSV - columnas
+    if faltan:
+        raise ValueError("faltan columnas: " + ", ".join(sorted(faltan)))
+
+    platos_data = OrderedDict()
+    for n, fila in enumerate(lector, start=2):
+        fila = {(k or "").strip().lower(): (v or "").strip() for k, v in fila.items() if k}
+        if not any(fila.values()):
+            continue  # fila vacía
+        try:
+            nombre_plato = fila["plato"]
+            if not nombre_plato or not fila["insumo"]:
+                raise ValueError("falta el nombre del plato o del insumo")
+            if nombre_plato not in platos_data:
+                platos_data[nombre_plato] = {
+                    "precio_venta": numero(fila["precio_venta"], "precio_venta"),
+                    "mano_obra": numero(fila.get("mano_obra"), "mano_obra", obligatorio=False),
+                    "insumos": [],
+                }
+            platos_data[nombre_plato]["insumos"].append({
+                "nombre": fila["insumo"],
+                "unidad": fila["unidad"],
+                "precio": numero(fila["precio"], "precio"),
+                "merma_pct": numero(fila.get("merma_pct"), "merma_pct", obligatorio=False),
+                "cantidad": numero(fila["cantidad"], "cantidad"),
+            })
+        except ValueError as e:
+            raise ValueError(f"fila {n}: {e}") from None
+    return platos_data
 
 def _crear_plato_con_insumos(nombre, precio_venta, mano_obra, lista_insumos):
     """
@@ -62,7 +127,7 @@ class PlantillasScreen(MDScreen):
 
         root = MDBoxLayout(orientation="vertical", padding=dp(24), spacing=dp(14))
 
-        back = MDButton(MDButtonText(text="‹  Volver al inicio", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48))
+        back = MDButton(MDButtonText(text="‹  Volver al inicio"), style="text", size_hint_y=None, height=dp(48))
         back.bind(on_release=lambda *_: setattr(self.manager, "current", "inicio"))
         root.add_widget(back)
 
@@ -71,10 +136,9 @@ class PlantillasScreen(MDScreen):
                     theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1))
         )
 
-        self.estado_label = MDLabel(
-            text="", size_hint_y=None, height=dp(30),
-            theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1),
-        )
+        self.estado_label = alto_segun_texto(MDLabel(
+            text="", theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1),
+        ), dp(30))
         root.add_widget(self.estado_label)
 
         scroll = MDScrollView()
@@ -93,24 +157,32 @@ class PlantillasScreen(MDScreen):
     # ---------- Sección 1: generador de combinaciones ----------
 
     def _seccion_generador(self):
+        # Alto adaptable: en un teléfono los textos ocupan más líneas que en el PC
         card = MDCard(
-            orientation="vertical", size_hint_y=None, height=dp(340),
-            padding=dp(16), spacing=dp(10), md_bg_color=(0.15, 0.15, 0.18, 1), radius=[dp(10)],
+            orientation="vertical", size_hint_y=None, height=dp(100),
+            padding=dp(16), spacing=dp(10), theme_bg_color="Custom", md_bg_color=(1, 1, 1, 1), radius=[dp(10)],
         )
-        card.add_widget(MDLabel(
+        card.add_widget(alto_segun_texto(MDLabel(
             text="Generador de combinaciones", bold=True, font_style="Title", role="large",
-            theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1), size_hint_y=None, height=dp(30),
-        ))
-        card.add_widget(MDLabel(
+            theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1),
+        ), dp(30)))
+        card.add_widget(alto_segun_texto(MDLabel(
             text=f"{len(PROTEINAS)} proteínas × {len(GUARNICIONES)} guarniciones × {len(SALSAS)} salsas "
                  f"= {len(PROTEINAS) * len(GUARNICIONES) * len(SALSAS)} platos posibles.",
-            theme_text_color="Secondary", size_hint_y=None, height=dp(24),
-        ))
+            theme_text_color="Secondary",
+        ), dp(24)))
 
-        selectores = MDBoxLayout(size_hint_y=None, height=dp(48), spacing=dp(8))
-        self.btn_proteina = MDButton(MDButtonText(text="Proteína", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48))
-        self.btn_guarnicion = MDButton(MDButtonText(text="Guarnición", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48))
-        self.btn_salsa = MDButton(MDButtonText(text="Salsa (opcional)", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48))
+        # Uno debajo del otro: en una sola fila no caben en el ancho de un teléfono
+        selectores = MDBoxLayout(orientation="vertical", size_hint_y=None, adaptive_height=True, spacing=dp(8))
+        self.btn_proteina = MDButton(MDButtonText(text="Proteína"), style="outlined", size_hint_y=None, height=dp(48),
+                                     theme_width="Custom", size_hint_x=1)
+        self.btn_guarnicion = MDButton(MDButtonText(text="Guarnición"), style="outlined", size_hint_y=None, height=dp(48),
+                                       theme_width="Custom", size_hint_x=1)
+        self.btn_salsa = MDButton(MDButtonText(text="Salsa (opcional)"), style="outlined", size_hint_y=None, height=dp(48),
+                                  theme_width="Custom", size_hint_x=1)
+        self.btn_proteina.bind(on_release=lambda b: self._abrir_selector(b, PROTEINAS, self._set_proteina))
+        self.btn_guarnicion.bind(on_release=lambda b: self._abrir_selector(b, GUARNICIONES, self._set_guarnicion))
+        self.btn_salsa.bind(on_release=lambda b: self._abrir_selector(b, SALSAS, self._set_salsa))
         selectores.add_widget(self.btn_proteina)
         selectores.add_widget(self.btn_guarnicion)
         selectores.add_widget(self.btn_salsa)
@@ -121,10 +193,10 @@ class PlantillasScreen(MDScreen):
         card.add_widget(self.nombre_combo_field)
         card.add_widget(self.precio_combo_field)
 
-        crear_btn = MDButton(MDButtonText(text="CREAR PLATO CON ESTA COMBINACIÓN", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48))
+        crear_btn = MDButton(MDButtonText(text="CREAR PLATO CON ESTA COMBINACIÓN"), style="filled", size_hint_y=None, height=dp(48))
         crear_btn.bind(on_release=lambda x: self._crear_combo())
         card.add_widget(crear_btn)
-        return card
+        return alto_segun_contenido(card)
 
     def _abrir_selector(self, boton, lista, callback):
         items = [{"text": item["nombre"], "on_release": lambda i=item: callback(i)} for item in lista]
@@ -133,19 +205,19 @@ class PlantillasScreen(MDScreen):
 
     def _set_proteina(self, item):
         self._proteina = item
-        self.btn_proteina.text = item["nombre"]
+        set_texto_boton(self.btn_proteina, item["nombre"])
         self.menu.dismiss()
         self._sugerir_nombre()
 
     def _set_guarnicion(self, item):
         self._guarnicion = item
-        self.btn_guarnicion.text = item["nombre"]
+        set_texto_boton(self.btn_guarnicion, item["nombre"])
         self.menu.dismiss()
         self._sugerir_nombre()
 
     def _set_salsa(self, item):
         self._salsa = item
-        self.btn_salsa.text = item["nombre"]
+        set_texto_boton(self.btn_salsa, item["nombre"])
         self.menu.dismiss()
         self._sugerir_nombre()
 
@@ -160,7 +232,7 @@ class PlantillasScreen(MDScreen):
     def _crear_combo(self):
         if not (self._proteina and self._guarnicion):
             self.estado_label.text_color = (0.9, 0.3, 0.3, 1)
-            self.estado_label.text = "⚠ Elige al menos proteína y guarnición."
+            self.estado_label.text = "Elige al menos proteína y guarnición."
             return
         nombre = self.nombre_combo_field.text.strip()
         try:
@@ -169,7 +241,7 @@ class PlantillasScreen(MDScreen):
             precio_venta = 0
         if not nombre or precio_venta <= 0:
             self.estado_label.text_color = (0.9, 0.3, 0.3, 1)
-            self.estado_label.text = "⚠ Falta el nombre o un precio de venta válido."
+            self.estado_label.text = "Falta el nombre o un precio de venta válido."
             return
 
         insumos = [self._proteina, self._guarnicion]
@@ -179,30 +251,30 @@ class PlantillasScreen(MDScreen):
         _crear_plato_con_insumos(nombre, precio_venta, mano_obra=400, lista_insumos=insumos)
 
         self.estado_label.text_color = (0.2, 0.8, 0.4, 1)
-        self.estado_label.text = f"✓ '{nombre}' se creó con su receta. Revísalo en Mis Recetas."
+        self.estado_label.text = f"'{nombre}' se creó con su receta. Revísalo en Mis Recetas."
         self.precio_combo_field.text = ""
 
     # ---------- Sección 2: importar desde CSV ----------
 
     def _seccion_importar_csv(self):
         card = MDCard(
-            orientation="vertical", size_hint_y=None, height=dp(170),
-            padding=dp(16), spacing=dp(8), md_bg_color=(0.15, 0.15, 0.18, 1), radius=[dp(10)],
+            orientation="vertical", size_hint_y=None, height=dp(100),
+            padding=dp(16), spacing=dp(8), theme_bg_color="Custom", md_bg_color=(1, 1, 1, 1), radius=[dp(10)],
         )
-        card.add_widget(MDLabel(
+        card.add_widget(alto_segun_texto(MDLabel(
             text="Importar mis recetas desde CSV", bold=True, font_style="Title", role="large",
-            theme_text_color="Custom", text_color=(1, 1, 1, 1), size_hint_y=None, height=dp(30),
-        ))
-        card.add_widget(MDLabel(
+            theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1),
+        ), dp(30)))
+        card.add_widget(alto_segun_texto(MDLabel(
             text="El archivo debe tener columnas: plato, precio_venta, mano_obra, "
                  "insumo, unidad, precio, merma_pct, cantidad. Una fila por cada "
                  "insumo de cada plato (el mismo nombre de plato se repite en varias filas).",
             theme_text_color="Secondary",
-        ))
-        btn = MDButton(MDButtonText(text="ELEGIR ARCHIVO CSV", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48))
+        )))
+        btn = MDButton(MDButtonText(text="ELEGIR ARCHIVO CSV"), style="outlined", size_hint_y=None, height=dp(48))
         btn.bind(on_release=lambda x: self._abrir_selector_csv())
         card.add_widget(btn)
-        return card
+        return alto_segun_contenido(card)
 
     def _abrir_selector_csv(self):
         if not self.file_manager:
@@ -217,37 +289,25 @@ class PlantillasScreen(MDScreen):
         self.file_manager.close()
         if not ruta.lower().endswith(".csv"):
             self.estado_label.text_color = (0.9, 0.3, 0.3, 1)
-            self.estado_label.text = "⚠ Ese archivo no es un .csv"
+            self.estado_label.text = "Ese archivo no es un .csv"
             return
 
-        platos_data = OrderedDict()
         try:
-            with open(ruta, newline="", encoding="utf-8-sig") as f:
-                for fila in csv.DictReader(f):
-                    nombre_plato = fila["plato"].strip()
-                    if nombre_plato not in platos_data:
-                        platos_data[nombre_plato] = {
-                            "precio_venta": float(fila["precio_venta"]),
-                            "mano_obra": float(fila.get("mano_obra") or 0),
-                            "insumos": [],
-                        }
-                    platos_data[nombre_plato]["insumos"].append({
-                        "nombre": fila["insumo"].strip(),
-                        "unidad": fila["unidad"].strip(),
-                        "precio": float(fila["precio"]),
-                        "merma_pct": float(fila.get("merma_pct") or 0),
-                        "cantidad": float(fila["cantidad"]),
-                    })
-        except Exception as e:
+            platos_data = leer_csv_recetas(ruta)
+        except (OSError, ValueError) as e:
             self.estado_label.text_color = (0.9, 0.3, 0.3, 1)
-            self.estado_label.text = f"⚠ Error leyendo el CSV: {e}"
+            self.estado_label.text = f"Error leyendo el CSV: {e}"
+            return
+        if not platos_data:
+            self.estado_label.text_color = (0.9, 0.3, 0.3, 1)
+            self.estado_label.text = "El CSV no tiene filas con recetas."
             return
 
         for nombre_plato, datos in platos_data.items():
             _crear_plato_con_insumos(nombre_plato, datos["precio_venta"], datos["mano_obra"], datos["insumos"])
 
         self.estado_label.text_color = (0.2, 0.8, 0.4, 1)
-        self.estado_label.text = f"✓ Se importaron {len(platos_data)} plato(s) desde el CSV."
+        self.estado_label.text = f"Se importaron {len(platos_data)} plato(s) desde el CSV."
 
     # ---------- Sección 3: accesos rápidos (recetas típicas) ----------
 
@@ -256,7 +316,7 @@ class PlantillasScreen(MDScreen):
         contenedor.bind(minimum_height=contenedor.setter("height"))
         contenedor.add_widget(MDLabel(
             text="Accesos rápidos", bold=True, font_style="Title", role="large",
-            theme_text_color="Custom", text_color=(1, 1, 1, 1), size_hint_y=None, height=dp(30),
+            theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1), size_hint_y=None, height=dp(30),
         ))
         for plantilla in PLANTILLAS:
             contenedor.add_widget(self._tarjeta_plantilla(plantilla))
@@ -265,18 +325,18 @@ class PlantillasScreen(MDScreen):
     def _tarjeta_plantilla(self, plantilla):
         card = MDCard(
             orientation="vertical", size_hint_y=None, height=dp(100),
-            padding=dp(12), spacing=dp(4), md_bg_color=(0.15, 0.15, 0.18, 1), radius=[dp(10)],
+            padding=dp(12), spacing=dp(4), theme_bg_color="Custom", md_bg_color=(1, 1, 1, 1), radius=[dp(10)],
         )
-        card.add_widget(MDLabel(text=plantilla["nombre"], bold=True,
-                                 theme_text_color="Custom", text_color=(1, 1, 1, 1)))
-        card.add_widget(MDLabel(
+        card.add_widget(alto_segun_texto(MDLabel(text=plantilla["nombre"], bold=True,
+                                                 theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1)), dp(24)))
+        card.add_widget(alto_segun_texto(MDLabel(
             text=f"{len(plantilla['insumos'])} insumos  ·  venta sugerida ${plantilla['precio_venta_sugerido']:,.0f}",
             theme_text_color="Secondary",
-        ))
-        card.add_widget(
-            MDButton(MDButtonText(text="USAR ESTA PLANTILLA", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48))
-        )
-        return card
+        ), dp(24)))
+        usar_btn = MDButton(MDButtonText(text="USAR ESTA PLANTILLA"), style="filled", size_hint_y=None, height=dp(48))
+        usar_btn.bind(on_release=lambda *_: self._usar_plantilla(plantilla))
+        card.add_widget(usar_btn)
+        return alto_segun_contenido(card)
 
     def _usar_plantilla(self, plantilla):
         insumos = [
@@ -288,4 +348,4 @@ class PlantillasScreen(MDScreen):
             plantilla["nombre"], plantilla["precio_venta_sugerido"], plantilla["mano_obra_sugerida"], insumos
         )
         self.estado_label.text_color = (0.2, 0.8, 0.4, 1)
-        self.estado_label.text = f"✓ '{plantilla['nombre']}' se agregó con su receta completa."
+        self.estado_label.text = f"'{plantilla['nombre']}' se agregó con su receta completa."

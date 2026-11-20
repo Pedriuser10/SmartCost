@@ -7,7 +7,8 @@ from kivymd.uix.label import MDLabel
 from kivymd.uix.menu import MDDropdownMenu
 from kivymd.uix.button import MDButton, MDButtonText
 from models import storage
-from services.calculo_costos import costo_real_plato, margen
+from services.calculo_costos import costo_real_plato, margen, clasificar_margen, COLOR_MARGEN
+from views.utils import set_texto_boton
 
 
 class CostCalculatorScreen(MDScreen):
@@ -18,7 +19,7 @@ class CostCalculatorScreen(MDScreen):
 
         root = MDBoxLayout(orientation="vertical", padding=dp(24), spacing=dp(16))
 
-        back = MDButton (MDButtonText(text="Volver", size_hint_y=None, height=dp(48), theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1)),style="text", size_hint_y=None, height=dp(48))
+        back = MDButton(MDButtonText(text="‹  Volver al inicio"), style="text", size_hint_y=None, height=dp(48))
         back.bind(on_release=lambda *_: setattr(self.manager, "current", "inicio"))
         root.add_widget(back)
 
@@ -34,7 +35,7 @@ class CostCalculatorScreen(MDScreen):
             )
         )
 
-        self.selector_btn = MDButton(MDButtonText(text="Elegir plato", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48))
+        self.selector_btn = MDButton(MDButtonText(text="Elegir plato"), style="text", size_hint_y=None, height=dp(48))
         self.selector_btn.bind(on_release=self._abrir_selector)
         root.add_widget(self.selector_btn)
 
@@ -47,8 +48,15 @@ class CostCalculatorScreen(MDScreen):
         self.add_widget(root)
 
     def on_pre_enter(self, *args):
-        if self._plato_actual is None:
-            self._mostrar_mensaje_inicial()
+        if self._plato_actual is not None:
+            # Se vuelve a leer: el plato pudo editarse o borrarse en Mis Recetas desde la última visita
+            self._plato_actual = storage.get_plato(self._plato_actual["id"])
+            if self._plato_actual is not None:
+                set_texto_boton(self.selector_btn, self._plato_actual["nombre"])
+                self._mostrar_desglose(self._plato_actual)
+                return
+            set_texto_boton(self.selector_btn, "Elegir plato")
+        self._mostrar_mensaje_inicial()
 
     def _mostrar_mensaje_inicial(self):
         self.resultado_box.clear_widgets()
@@ -75,13 +83,13 @@ class CostCalculatorScreen(MDScreen):
     def _seleccionar_plato(self, plato):
         self.menu.dismiss()
         self._plato_actual = plato
-        self.selector_btn.text = plato["nombre"]
+        set_texto_boton(self.selector_btn, plato["nombre"])
         self._mostrar_desglose(plato)
 
     def seleccionar_plato_externo(self, plato):
         """Permite que otra pantalla (ej. Menú Visual) preseleccione un plato al entrar aquí."""
         self._plato_actual = plato
-        self.selector_btn.text = plato["nombre"]
+        set_texto_boton(self.selector_btn, plato["nombre"])
         self._mostrar_desglose(plato)
 
     def _mostrar_desglose(self, plato):
@@ -100,14 +108,17 @@ class CostCalculatorScreen(MDScreen):
 
         for item in insumos_usados:
             subtotal = item["cantidad"] * item["precio"] * (1 + item["merma_pct"])
-            fila = MDBoxLayout(orientation="horizontal", size_hint_y=None, height=dp(30))
-            fila.add_widget(MDLabel(
+            fila = MDBoxLayout(orientation="horizontal", size_hint_y=None, height=dp(30), spacing=dp(8))
+            nombre = MDLabel(
                 text=f"{item['nombre']}  ·  {item['cantidad']} {item['unidad']}",
                 theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1),
-            ))
+            )
+            # Nombres largos ocupan dos líneas: la fila crece en vez de pisar la siguiente
+            nombre.bind(texture_size=lambda _l, s, f=fila: setattr(f, "height", max(dp(30), s[1] + dp(6))))
+            fila.add_widget(nombre)
             fila.add_widget(MDLabel(
-                text=f"${subtotal:,.0f}", halign="right",
-                theme_text_color="Custom", text_color=(1, 0, 0, 1),
+                text=f"${subtotal:,.0f}", halign="right", size_hint_x=None, width=dp(96),
+                theme_text_color="Custom", text_color=(0.75, 0.2, 0.2, 1),
             ))
             self.resultado_box.add_widget(fila)
 
@@ -121,7 +132,7 @@ class CostCalculatorScreen(MDScreen):
         self.resultado_box.add_widget(MDLabel(
             text=f"Costo real total: ${costo:,.0f}",
             bold=True, size_hint_y=None, height=dp(32),
-            theme_text_color="Custom", text_color=(0, 1, 0, 1),
+            theme_text_color="Custom", text_color=COLOR_MARGEN[clasificar_margen(m)],
         ))
         self.resultado_box.add_widget(MDLabel(
             text=f"Precio de venta: ${plato['precio_venta']:,.0f}   ·   Margen: {m:.1f}%",
