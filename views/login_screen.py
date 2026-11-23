@@ -11,6 +11,7 @@ from kivymd.uix.card import MDCard
 from kivymd.uix.button import MDButton, MDButtonText
 from kivymd.uix.textfield import MDTextField, MDTextFieldHintText, MDTextFieldTrailingIcon
 from services import auth
+from services.analytics_service import registrar_evento
 from views import marca
 from views.utils import set_texto_boton
 
@@ -235,7 +236,9 @@ class LoginScreen(MDScreen):
         else:
             ok, msg = auth.iniciar_sesion(usuario, clave)
             if ok:
+                registrar_evento("login_exitoso", {"usuario": usuario.strip()})
                 self.manager.current = "inicio"
             else:
+                registrar_evento("login_fallido", {"motivo": msg})
                 self.password_field.text = ""   # nunca se deja la clave fallida en pantalla
                 self._mensaje(msg, ROJO)
