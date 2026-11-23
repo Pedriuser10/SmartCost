@@ -17,6 +17,7 @@ from kivymd.uix.menu import MDDropdownMenu
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.label import MDLabel
 from models import rutas
+from services.analytics_service import registrar_evento
 
 TECLA_ATRAS = 27  # botón Atrás de Android (Escape en el PC)
 PANTALLAS_RAIZ = ("login", "inicio")  # desde aquí, Atrás deja que Android salga de la app
@@ -91,7 +92,9 @@ class SmartCostApp(MDApp):
             title="Acerca de", 
             description="App para calcular costos reales y controlar la rentabilidad del menú en pequeños negocios gastronómicos. Python + Kivy/KivyMD + JSON."
         ))
-
+        
+        registrar_evento("app_abierta", {"pantalla_inicial": "login"})
+        
         return sm
 
     def _tecla(self, window, tecla, *args):

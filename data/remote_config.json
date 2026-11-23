@@ -1,0 +1,16 @@
+{
+    "ab_testing_recetas": {
+        "experimento": "optimizacion_cta_crear_plato",
+        "variante_activa": "B",
+        "variantes": {
+            "A": {
+                "texto_boton_agregar": "+ Agregar",
+                "mostrar_atajo_inicio": false
+            },
+            "B": {
+                "texto_boton_agregar": "+ Calcular Rentabilidad de Plato",
+                "mostrar_atajo_inicio": true
+            }
+        }
+    }
+}

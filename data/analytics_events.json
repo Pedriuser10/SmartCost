@@ -1,0 +1,89 @@
+[
+    {
+        "evento": "app_abierta",
+        "timestamp": "2026-11-23 11:08:53",
+        "propiedades": {
+            "pantalla_inicial": "login"
+        }
+    },
+    {
+        "evento": "app_abierta",
+        "timestamp": "2026-11-23 11:09:13",
+        "propiedades": {
+            "pantalla_inicial": "login"
+        }
+    },
+    {
+        "evento": "app_abierta",
+        "timestamp": "2026-11-23 11:10:02",
+        "propiedades": {
+            "pantalla_inicial": "login"
+        }
+    },
+    {
+        "evento": "app_abierta",
+        "timestamp": "2026-11-23 11:12:47",
+        "propiedades": {
+            "pantalla_inicial": "login"
+        }
+    },
+    {
+        "evento": "login_fallido",
+        "timestamp": "2026-11-23 11:13:00",
+        "propiedades": {
+            "motivo": "Usuario o contraseña incorrectos."
+        }
+    },
+    {
+        "evento": "login_fallido",
+        "timestamp": "2026-11-23 11:13:05",
+        "propiedades": {
+            "motivo": "Usuario o contraseña incorrectos."
+        }
+    },
+    {
+        "evento": "login_exitoso",
+        "timestamp": "2026-11-23 11:15:43",
+        "propiedades": {
+            "usuario": "Cristobal"
+        }
+    },
+    {
+        "evento": "login_exitoso",
+        "timestamp": "2026-11-23 11:16:31",
+        "propiedades": {
+            "usuario": "cristobal"
+        }
+    },
+    {
+        "evento": "login_exitoso",
+        "timestamp": "2026-11-23 11:16:49",
+        "propiedades": {
+            "usuario": "cristobal"
+        }
+    },
+    {
+        "evento": "app_abierta",
+        "timestamp": "2026-11-23 11:18:10",
+        "propiedades": {
+            "pantalla_inicial": "login"
+        }
+    },
+    {
+        "evento": "login_exitoso",
+        "timestamp": "2026-11-23 11:18:19",
+        "propiedades": {
+            "usuario": "cristobal"
+        }
+    },
+    {
+        "evento": "plato_creado",
+        "timestamp": "2026-11-23 11:19:17",
+        "propiedades": {
+            "nombre_plato": "Papas fritas",
+            "precio_venta": 2000.0,
+            "costo_mano_obra": 0.0,
+            "tiene_imagen": false
+        }
+    }
+]
