@@ -8,6 +8,7 @@ from views.recetas_screen import RecetasScreen
 from views.ingenieria_menu_screen import IngenieriaMenuScreen
 from views.menu_visual_screen import MenuVisualScreen
 from views.plantillas_screen import PlantillasScreen
+from views.unidades_screen import UnidadesScreen
 from kivy.core.window import Window
 from kivy.metrics import dp
 from kivy.uix.modalview import ModalView
@@ -74,7 +75,8 @@ class SmartCostApp(MDApp):
         Window.bind(on_keyboard=self._tecla)
 
         sm = ScreenManager()
-        pantallas = [LoginScreen, HomeScreen, CostCalculatorScreen, RecetasScreen, IngenieriaMenuScreen, MenuVisualScreen, PlantillasScreen]
+        pantallas = [LoginScreen, HomeScreen, CostCalculatorScreen, RecetasScreen, IngenieriaMenuScreen, MenuVisualScreen, PlantillasScreen,
+                     UnidadesScreen]
 
    
         for pantalla in pantallas:
