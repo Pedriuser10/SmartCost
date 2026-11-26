@@ -37,3 +37,6 @@ respaldos/
 
 # Telemetría local: eventos de uso de cada instalación (no se versionan)
 data/analytics_events.json
+
+# Historial local de sesiones con Claude Code (no se versiona)
+DOCUMENTACION/HISTORIAL_CLAUDE_CODE.md
