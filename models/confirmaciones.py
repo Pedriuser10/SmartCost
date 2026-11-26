@@ -31,7 +31,7 @@ from services.calculo_costos import UNIDADES
 
 NOMBRE_ARCHIVO = "confirmaciones_unidades.json"
 VERSION = 1
-BASES = ("g", "ml", "unidad")
+BASES = ("g", "ml", "unidad", "m")
 
 PENDIENTE, CONFIRMADO, REVISAR = "pendiente", "confirmado", "revisar"
 
@@ -46,6 +46,8 @@ _ALIAS = {
     "l": "l", "lt": "l", "lts": "l", "litro": "l", "litros": "l",
     "un": "unidad", "und": "unidad", "u": "unidad", "unidad": "unidad", "unidades": "unidad",
     "docena": "docena", "docenas": "docena",
+    "m": "m", "mt": "m", "mts": "m", "metro": "m", "metros": "m",
+    "cm": "cm",
 }
 _PATRON = re.compile(r"^\s*(\d+(?:[.,]\d+)?)?\s*([^\d\s.,]+)?\s*$")
 
@@ -105,10 +107,10 @@ def sugerir(texto_unidad):
 # ---------- opciones para la pantalla (la unidad base sale de la unidad elegida) ----------
 
 NOMBRES = {"g": "gramos (g)", "kg": "kilos (kg)", "mg": "miligramos (mg)", "ml": "mililitros (ml)",
-           "l": "litros (l)", "unidad": "unidades", "docena": "docenas"}
-SINGULAR_BASE = {"g": "gramo", "ml": "mililitro", "unidad": "unidad"}
+           "l": "litros (l)", "unidad": "unidades", "docena": "docenas", "m": "metros (m)", "cm": "centímetros (cm)"}
+SINGULAR_BASE = {"g": "gramo", "ml": "mililitro", "unidad": "unidad", "m": "metro"}
 # Unidades que se ofrecen para anotar las recetas, por unidad base (mg queda fuera por rara)
-UNIDADES_RECETA = {"g": ("kg", "g"), "ml": ("l", "ml"), "unidad": ("unidad", "docena")}
+UNIDADES_RECETA = {"g": ("kg", "g"), "ml": ("l", "ml"), "unidad": ("unidad", "docena"), "m": ("m", "cm")}
 
 
 def base_de(unidad):

@@ -198,7 +198,7 @@ class TestColaYProvisional(BaseInventario):
 
 
 class TestMigracionDeEsquema(unittest.TestCase):
-    def test_una_base_v1_pasa_a_v2_sin_perder_datos(self):
+    def test_una_base_v1_pasa_a_la_ultima_version_sin_perder_datos(self):
         with tempfile.TemporaryDirectory() as tmp:
             ruta = os.path.join(tmp, db.NOMBRE_ARCHIVO)
             con = sqlite3.connect(ruta)
@@ -212,7 +212,7 @@ class TestMigracionDeEsquema(unittest.TestCase):
             con.close()
             base = db.BaseLocal(ruta)
             try:
-                self.assertEqual(base.version_esquema(), 2)
+                self.assertEqual(base.version_esquema(), db.VERSION_ESQUEMA)
                 self.assertEqual([(i["nombre"], i["precio"]) for i in base.get_insumos()], [("Tomate", 1200.0)])
                 i = base.inventario(1)
                 self.assertEqual((i["unidad_base"], i["stock_actual"]), (None, D("0")),

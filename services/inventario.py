@@ -12,10 +12,13 @@ sin conexión los mismos valores que el servidor. Los resultados locales son
 - El costo de reposición se reemplaza solo si el nuevo dato no es más antiguo.
 - Un consumo mayor al stock se permite y deja el aviso stock_negativo.
 - Merma como fracción, igual que en la app: 0,1 = 10 %.
+- Venta directa (2026-11-27): margen objetivo en porcentaje (30 = 30 %) sobre el precio;
+  costos netos y precio de góndola con IVA, sugerido redondeado hacia arriba a $10.
+  El precio de góndola nunca cambia solo: se aprueba.
 """
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_CEILING, ROUND_HALF_UP
 
 from services.calculo_costos import a_unidad_base
 
@@ -113,3 +116,65 @@ def cantidad_para_produccion(cantidad, unidad, unidad_base, porciones, merma_pct
     if en_base is None:
         return None
     return redondear(en_base * decimal(porciones) * (1 + decimal(merma_pct or 0)))
+
+
+# ---------- venta directa y precio de venta ----------
+
+REDONDEO_PRECIO = Decimal("10")
+_CENTESIMOS = Decimal("0.01")
+
+
+def precio_sugerido(costo, margen_pct, tasa_iva, redondeo=REDONDEO_PRECIO):
+    """Precio con IVA = costo neto × (1 + IVA) / (1 − margen/100), hacia arriba a $10. None si falta un dato.
+
+    Igual que privado.precio_sugerido() en PostgreSQL: el IVA se multiplica antes de dividir y se
+    redondea a 6 decimales antes de subir, para que una división periódica no convierta $850 en $860.
+    """
+    if costo is None or margen_pct is None or tasa_iva is None:
+        return None
+    margen = decimal(margen_pct)
+    if not Decimal("0") <= margen < Decimal("100"):
+        raise ErrorInventario("El margen objetivo va de 0 a menos de 100 %")
+    bruto = redondear(decimal(costo) * (1 + decimal(tasa_iva)) / (1 - margen / 100))
+    return (bruto / redondeo).to_integral_value(rounding=ROUND_CEILING) * redondeo
+
+
+def margen_real(precio_con_iva, costo, tasa_iva):
+    """Margen (%) que deja un precio con IVA frente al costo neto. None si no se puede calcular."""
+    if precio_con_iva is None or costo is None or decimal(precio_con_iva) <= 0:
+        return None
+    neto = decimal(precio_con_iva) / (1 + decimal(tasa_iva))
+    return ((neto - decimal(costo)) / neto * 100).quantize(_CENTESIMOS, rounding=ROUND_HALF_UP)
+
+
+@dataclass(frozen=True)
+class ResultadoVenta:
+    estado: EstadoInventario
+    precio_unitario: Decimal
+    total: Decimal            # cobrado, con IVA
+    ingreso_neto: Decimal     # total sin IVA
+    costo_unitario: Decimal   # costo promedio al vender; None si aún no hay compras
+    costo_venta: Decimal
+    utilidad: Decimal
+    stock_negativo: bool
+
+
+def aplicar_venta(estado, cantidad, precio_unitario, tasa_iva, vendido_en=None, ahora=None):
+    """Descuenta stock y costea la venta al costo promedio (como privado.aplicar_venta)."""
+    cantidad = decimal(cantidad)
+    if cantidad <= 0:
+        raise ErrorInventario("La cantidad vendida debe ser mayor que cero")
+    if precio_unitario is None:
+        raise ErrorInventario("El producto no tiene precio de venta aprobado")
+    precio = decimal(precio_unitario).quantize(_CENTESIMOS, rounding=ROUND_HALF_UP)
+    if precio < 0:
+        raise ErrorInventario("El precio no puede ser negativo")
+    if vendido_en is not None:
+        _validar_fecha(vendido_en, ahora)
+    total = (cantidad * precio).quantize(_CENTESIMOS, rounding=ROUND_HALF_UP)
+    ingreso = redondear(total / (1 + decimal(tasa_iva)))
+    costo_u = estado.costo_promedio
+    costo = redondear(cantidad * costo_u) if costo_u is not None else None
+    nuevo = replace(estado, stock_actual=estado.stock_actual - cantidad)
+    return ResultadoVenta(nuevo, precio, total, ingreso, costo_u, costo,
+                          ingreso - costo if costo is not None else None, nuevo.stock_actual < 0)

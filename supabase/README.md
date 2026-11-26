@@ -8,8 +8,10 @@ conecta a él.
 |---|---|
 | `migrations/20261126000000_esquema_inicial.sql` | Migración (UP): tablas, restricciones, funciones, triggers, RLS |
 | `rollback/20261126000000_esquema_inicial.down.sql` | Reversión (DOWN). **Borra todo**: solo en desarrollo |
-| `tests/database/*.test.sql` | Pruebas pgTAP (84) |
-| `probar_en_contenedor.sh` | Aplica UP, pruebas, DOWN y UP otra vez en un Postgres desechable |
+| `migrations/20261127000000_ventas_precios.sql` | Venta directa, precio de venta y protección del margen |
+| `rollback/20261127000000_ventas_precios.down.sql` | Reversión: deja el esquema exactamente como tras la migración inicial |
+| `tests/database/*.test.sql` | Pruebas pgTAP (126) |
+| `probar_en_contenedor.sh` | Aplica las migraciones, las pruebas, los DOWN y las migraciones otra vez en un Postgres desechable |
 
 ## Probar
 
@@ -69,6 +71,33 @@ fórmula actual. Entran al inventario solo cuando se confirme su `unidad_base`, 
 caso. Hasta entonces una compra sobre ellos se rechaza. La `unidad_base` no se cambia una
 vez fijada.
 
+## Venta directa y precio de venta (2026-11-27)
+
+Un artículo de `insumos` (el equivalente de `productos`) puede marcarse `se_vende`, para un
+almacén, una tienda o una ferretería. Decisiones del autor:
+
+- `margen_objetivo` en **porcentaje** (30.00 = 30 %), **sobre el precio**, no recargo sobre el costo.
+- Los costos se registran **netos** (más flete) y el precio de góndola **incluye IVA**
+  (`negocios.tasa_iva`, 19 % por defecto).
+- **Precio sugerido** = costo de reposición × (1 + IVA) / (1 − margen/100), redondeado **hacia
+  arriba a $10**. Lo recalcula el servidor con cada compra, lista de proveedor o cambio de
+  margen o de IVA.
+- **El precio de góndola nunca cambia solo.** Si el margen real cae bajo el objetivo, la vista
+  `insumos_costos` marca `margen_bajo`, y el propietario o el administrador aprueban el precio
+  con `fijar_precio_venta(producto)` (el sugerido) o `fijar_precio_venta(producto, precio)`.
+- **Ventas** (`insert` en `ventas`): bloquean el producto con `FOR UPDATE`, descuentan stock y
+  guardan el total con IVA, el ingreso neto, el costo de venta al **costo promedio** y la
+  utilidad. Usan el precio de góndola salvo que se indique otro (descuento en caja). Un stock
+  negativo se registra con aviso. Las ventas son inmutables.
+- **Lista del proveedor sin compra:** `actualizar_costo_reposicion()` cambia solo el costo de
+  reposición, que recalcula el sugerido. No toca el stock, el promedio ni el precio de góndola.
+- **Alerta de precio desactualizado:** umbral por negocio en `negocios.dias_alerta_precio`
+  (30 por defecto).
+- Unidades de longitud nuevas: `m` y `cm`.
+
+Columnas nuevas de la vista `insumos_costos`: `se_vende`, `margen_objetivo`, `precio_venta`,
+`precio_sugerido`, `precio_actualizado_en`, `margen_real`, `margen_bajo` y `sin_precio_venta`.
+
 ## Permisos
 
 Se aplica solo lo aprobado (✅ / ❌ de la matriz de 8.1). **Lo que sigue está denegado
@@ -90,10 +119,15 @@ se decida:
 Aprobado el 2026-11-26: propietario, administrador y editor registran compras, consumos,
 producciones y precios de mercado; el lector solo consulta.
 
+Aprobado el 2026-11-27: solo el propietario y el administrador aprueban el precio de góndola.
+**Por confirmar (➜):** el editor registra ventas. Está habilitado por analogía con los
+consumos, pero no tiene una aprobación explícita. Anular o corregir una venta queda denegado.
+
 ## Pendiente
 
 - Migrar los datos reales: requiere el informe de duplicados y unidades (D3/D6).
 - Cliente de sincronización (cola de `models/db.py` → API REST de Supabase).
-- Réplica local del inventario en SQLite, con valores provisionales hasta sincronizar.
-- Informe que compare, plato por plato, el costo actual y el proyectado (D5).
+- Pantallas de venta y de precios (lista con «margen bajo» y botón para aprobar el sugerido).
+- Ajustes del negocio (IVA, umbral) en la base local: hoy viven en la tabla `ajustes` de
+  SQLite y no se sincronizan.
 - Supabase Storage para las fotos.

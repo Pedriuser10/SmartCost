@@ -139,11 +139,41 @@ _MIGRACIONES = [
     CREATE INDEX idx_compras_insumo ON compras_insumos(insumo_id);
     CREATE INDEX idx_consumos_insumo ON consumos_insumos(insumo_id);
     """,
+    # 3: venta directa y precio de venta (aprobado 2026-11-27). Igual que la migración
+    # 20261127000000_ventas_precios.sql; el precio sugerido se calcula al leer.
+    """
+    ALTER TABLE insumos ADD COLUMN se_vende INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE insumos ADD COLUMN margen_objetivo TEXT;
+    ALTER TABLE insumos ADD COLUMN precio_venta TEXT;
+    ALTER TABLE insumos ADD COLUMN precio_actualizado_en TEXT;
+    CREATE TABLE ajustes (
+        clave  TEXT PRIMARY KEY,
+        valor  TEXT NOT NULL
+    );
+    INSERT INTO ajustes (clave, valor) VALUES ('tasa_iva', '0.19'), ('dias_alerta_precio', '30');
+    CREATE TABLE ventas (
+        id                INTEGER PRIMARY KEY,
+        uuid              TEXT NOT NULL UNIQUE,
+        insumo_id         INTEGER NOT NULL REFERENCES insumos(id),
+        cantidad          TEXT NOT NULL,
+        precio_unitario   TEXT NOT NULL,
+        total             TEXT NOT NULL,
+        ingreso_neto      TEXT NOT NULL,
+        costo_unitario    TEXT,
+        costo_venta       TEXT,
+        utilidad          TEXT,
+        stock_resultante  TEXT NOT NULL,
+        stock_negativo    INTEGER NOT NULL,
+        vendido_en        TEXT NOT NULL
+    );
+    CREATE INDEX idx_ventas_insumo ON ventas(insumo_id);
+    """,
 ]
 
 # Columnas que calcula el servidor: no viajan en la cola (el cliente no puede escribirlas)
-_SOLO_SERVIDOR = {"insumos": ("stock_actual", "costo_promedio", "costo_reposicion", "costo_actualizado_en")}
-BASES = ("g", "ml", "unidad")
+_SOLO_SERVIDOR = {"insumos": ("stock_actual", "costo_promedio", "costo_reposicion", "costo_actualizado_en",
+                              "precio_venta", "precio_actualizado_en")}
+BASES = ("g", "ml", "unidad", "m")
 MOTIVOS_CONSUMO = ("consumo", "perdida", "ajuste")   # 'produccion' solo vía registrar_produccion
 
 VERSION_ESQUEMA = len(_MIGRACIONES)
@@ -426,7 +456,7 @@ class BaseLocal:
     def set_unidad_base(self, insumo_id, unidad_base):
         """Confirma la unidad base de un insumo (D6: decisión explícita). No se cambia después."""
         if unidad_base not in BASES:
-            raise inv.ErrorInventario("La unidad base debe ser g, ml o unidad")
+            raise inv.ErrorInventario("La unidad base debe ser g, ml, unidad o m")
         with self._transaccion() as cur:
             fila = self._fila(cur, "insumos", insumo_id)
             if fila is None:
@@ -547,7 +577,8 @@ class BaseLocal:
             " OR (c.tabla = 'consumos_insumos' AND c.registro_uuid IN (SELECT uuid FROM consumos_insumos WHERE insumo_id = :i))"
             " OR (c.tabla = 'producciones' AND c.registro_uuid IN (SELECT p.uuid FROM producciones p"
             "     JOIN consumos_insumos ci ON ci.produccion_id = p.id WHERE ci.insumo_id = :i))"
-            " OR (c.tabla = 'costos_reposicion' AND c.registro_uuid = (SELECT uuid FROM insumos WHERE id = :i))))",
+            " OR (c.tabla = 'ventas' AND c.registro_uuid IN (SELECT uuid FROM ventas WHERE insumo_id = :i))"
+            " OR (c.tabla IN ('precios_venta', 'costos_reposicion') AND c.registro_uuid = (SELECT uuid FROM insumos WHERE id = :i))))",
             {"i": insumo_id}).fetchone()[0])
 
     def inventario(self, insumo_id, ahora=None):
@@ -556,15 +587,117 @@ class BaseLocal:
         if fila is None:
             return None
         actualizado = _fecha(fila["costo_actualizado_en"])
+        iva = self.tasa_iva()
+        se_vende = bool(fila["se_vende"])
+        costo, margen, precio = _dec(fila["costo_reposicion"]), _dec(fila["margen_objetivo"]), _dec(fila["precio_venta"])
+        sugerido = inv.precio_sugerido(costo, margen, iva) if se_vende else None
+        real = inv.margen_real(precio, costo, iva)
         return {
             "id": fila["id"], "nombre": fila["nombre"], "unidad_base": fila["unidad_base"],
             "stock_actual": Decimal(fila["stock_actual"]), "costo_promedio": _dec(fila["costo_promedio"]),
-            "costo_reposicion": _dec(fila["costo_reposicion"]), "costo_actualizado_en": actualizado,
+            "costo_reposicion": costo, "costo_actualizado_en": actualizado,
             "sin_costo_reposicion": fila["costo_reposicion"] is None,
-            "costo_desactualizado": costo_desactualizado(actualizado, ahora),
+            "costo_desactualizado": costo_desactualizado(actualizado, ahora, self.dias_alerta_precio()),
             "stock_negativo": Decimal(fila["stock_actual"]) < 0,
             "provisional": self._provisional(insumo_id),
+            # Venta directa
+            "se_vende": se_vende, "margen_objetivo": margen, "precio_venta": precio,
+            "precio_sugerido": sugerido, "precio_actualizado_en": _fecha(fila["precio_actualizado_en"]),
+            "margen_real": real,
+            "margen_bajo": bool(se_vende and real is not None and margen is not None and real < margen),
+            "sin_precio_venta": bool(se_vende and precio is None and sugerido is not None),
         }
+
+    # ---------- VENTA DIRECTA Y PRECIO DE VENTA ----------
+
+    def _ajuste(self, clave):
+        return self._con.execute("SELECT valor FROM ajustes WHERE clave = ?", (clave,)).fetchone()[0]
+
+    def tasa_iva(self):
+        return Decimal(self._ajuste("tasa_iva"))
+
+    def dias_alerta_precio(self):
+        return int(self._ajuste("dias_alerta_precio"))
+
+    def set_ajustes(self, tasa_iva=None, dias_alerta_precio=None):
+        """Ajustes del negocio. Pendiente: sincronizarlos con negocios (cuando exista el negocio local)."""
+        with self._transaccion() as cur:
+            if tasa_iva is not None:
+                iva = inv.decimal(tasa_iva)
+                if not Decimal("0") <= iva < 1:
+                    raise inv.ErrorInventario("La tasa de IVA va de 0 a menos de 1 (0,19 = 19 %)")
+                cur.execute("UPDATE ajustes SET valor = ? WHERE clave = 'tasa_iva'", (str(iva),))
+            if dias_alerta_precio is not None:
+                if not 1 <= int(dias_alerta_precio) <= 365:
+                    raise inv.ErrorInventario("El umbral de alerta va de 1 a 365 días")
+                cur.execute("UPDATE ajustes SET valor = ? WHERE clave = 'dias_alerta_precio'",
+                            (str(int(dias_alerta_precio)),))
+
+    def configurar_venta(self, insumo_id, se_vende, margen_objetivo=None):
+        """Marca si un artículo se vende directo y su margen objetivo (%, sobre el precio)."""
+        if margen_objetivo is not None and not Decimal("0") <= inv.decimal(margen_objetivo) < 100:
+            raise inv.ErrorInventario("El margen objetivo va de 0 a menos de 100 %")
+        with self._transaccion() as cur:
+            fila = self._fila(cur, "insumos", insumo_id)
+            if fila is None:
+                raise inv.ErrorInventario("El insumo no existe o está eliminado")
+            self._actualizar(cur, "insumos", fila, {
+                "se_vende": int(bool(se_vende)),
+                "margen_objetivo": None if margen_objetivo is None else str(inv.decimal(margen_objetivo))})
+
+    def fijar_precio_venta(self, insumo_id, precio=None):
+        """Aprueba el precio de góndola: el sugerido o el indicado. Devuelve el precio fijado.
+
+        En el servidor solo lo pueden hacer el propietario o el administrador (fijar_precio_venta).
+        """
+        with self._transaccion() as cur:
+            fila = self._fila(cur, "insumos", insumo_id)
+            if fila is None:
+                raise inv.ErrorInventario("El producto no existe o está eliminado")
+            if not fila["se_vende"]:
+                raise inv.ErrorInventario(f'El producto "{fila["nombre"]}" no está marcado para la venta')
+            if precio is None:
+                precio = inv.precio_sugerido(_dec(fila["costo_reposicion"]), _dec(fila["margen_objetivo"]),
+                                             self.tasa_iva())
+                if precio is None:
+                    raise inv.ErrorInventario("Falta el costo o el margen para sugerir un precio: indícalo a mano")
+            precio = inv.decimal(precio).quantize(Decimal("0.01"))
+            if precio < 0:
+                raise inv.ErrorInventario("El precio no puede ser negativo")
+            ahora = datetime.now(timezone.utc)
+            # Es una decisión del usuario: sube la versión, igual que en el servidor
+            cur.execute("UPDATE insumos SET precio_venta = ?, precio_actualizado_en = ?, version = version + 1,"
+                        " updated_at = ? WHERE id = ?", (str(precio), _iso(ahora), _ahora_utc(), insumo_id))
+            self._encolar(cur, "precios_venta", fila["uuid"], "actualizar",
+                          {"insumo_uuid": fila["uuid"], "precio": str(precio)})
+            return precio
+
+    def registrar_venta(self, insumo_id, cantidad, unidad, precio_unitario=None, vendido_en=None):
+        """Venta directa: descuenta stock y costea al promedio. Sin precio, usa el de góndola."""
+        vendido_en = vendido_en or datetime.now(timezone.utc)
+        with self._transaccion() as cur:
+            fila, estado = self._insumo_inventario(cur, insumo_id)
+            if not fila["se_vende"]:
+                raise inv.ErrorInventario(f'El producto "{fila["nombre"]}" no está marcado para la venta')
+            en_base = inv.a_unidad_base(cantidad, unidad, fila["unidad_base"])
+            if en_base is None:
+                raise inv.ErrorInventario(f"La unidad {unidad} no corresponde a {fila['unidad_base']}")
+            precio = precio_unitario if precio_unitario is not None else _dec(fila["precio_venta"])
+            r = inv.aplicar_venta(estado, en_base, precio, self.tasa_iva(), vendido_en)
+            registro = str(uuid.uuid4())
+            cur.execute(
+                "INSERT INTO ventas (uuid, insumo_id, cantidad, precio_unitario, total, ingreso_neto, costo_unitario,"
+                " costo_venta, utilidad, stock_resultante, stock_negativo, vendido_en)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (registro, insumo_id, str(en_base), str(r.precio_unitario), str(r.total), str(r.ingreso_neto),
+                 _texto(r.costo_unitario), _texto(r.costo_venta), _texto(r.utilidad),
+                 str(r.estado.stock_actual), int(r.stock_negativo), _iso(vendido_en)))
+            self._guardar_estado(cur, insumo_id, r.estado)
+            # Se envía el precio cobrado: el servidor registra el mismo aunque su góndola difiera
+            self._encolar(cur, "ventas", registro, "crear", {
+                "id": registro, "insumo_uuid": fila["uuid"], "cantidad": str(en_base),
+                "precio_unitario": str(r.precio_unitario), "vendido_en": _iso(vendido_en)})
+            return r
 
     def costo_proyectado(self, plato_id, ahora=None):
         """Costo para cotizar el plato con el costo de reposición (None si el plato no existe)."""
