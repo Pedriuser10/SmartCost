@@ -11,7 +11,7 @@ sin conexión los mismos valores que el servidor. Los resultados locales son
   Si el stock previo es 0 o negativo, o no hay promedio, pasa a ser el costo unitario.
 - El costo de reposición se reemplaza solo si el nuevo dato no es más antiguo.
 - Un consumo mayor al stock se permite y deja el aviso stock_negativo.
-- Merma en porcentaje: 10 = 10 %.
+- Merma como fracción, igual que en la app: 0,1 = 10 %.
 """
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
@@ -108,8 +108,8 @@ def aplicar_costo_mercado(estado, costo_unitario_nuevo, vigente_desde, ahora=Non
 
 
 def cantidad_para_produccion(cantidad, unidad, unidad_base, porciones, merma_pct):
-    """cantidad × factor de la unidad × porciones × (1 + merma/100). None si no convierte (D4)."""
+    """cantidad × factor de la unidad × porciones × (1 + merma). None si no convierte (D4)."""
     en_base = a_unidad_base(cantidad, unidad, unidad_base)
     if en_base is None:
         return None
-    return redondear(en_base * decimal(porciones) * (1 + decimal(merma_pct or 0) / 100))
+    return redondear(en_base * decimal(porciones) * (1 + decimal(merma_pct or 0)))

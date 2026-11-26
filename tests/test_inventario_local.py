@@ -24,7 +24,7 @@ class BaseInventario(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.ruta = os.path.join(self._tmp.name, db.NOMBRE_ARCHIVO)
         self.base = db.BaseLocal(self.ruta)
-        self.harina = self.base.add_insumo("Harina", "25kg", 0, 10)   # merma 10 %
+        self.harina = self.base.add_insumo("Harina", "25kg", 0, 0.1)   # merma 10 % (fracción, como la app)
         self.base.set_unidad_base(self.harina, "g")
 
     def tearDown(self):
@@ -167,7 +167,7 @@ class TestColaYProvisional(BaseInventario):
 
     def test_la_cola_no_lleva_columnas_del_servidor(self):
         self.base.registrar_compra(self.harina, 25, "kg", 25000)
-        self.base.update_insumo(self.harina, "Harina flor", "25kg", 0, 10)
+        self.base.update_insumo(self.harina, "Harina flor", "25kg", 0, 0.1)
         datos = self.base.operaciones_pendientes()[-1]["datos"]
         for columna in ("stock_actual", "costo_promedio", "costo_reposicion", "costo_actualizado_en"):
             self.assertNotIn(columna, datos)
