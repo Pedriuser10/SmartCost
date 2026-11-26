@@ -5,6 +5,7 @@ Describe reglas, arquitectura y estado **verificado** del proyecto. Lo que no se
 comprobar está marcado como **pendiente de confirmar**.
 
 Última revisión: 2026-10-29, sobre la rama `avance/smartcost-octubre-2026` (commit `432999d`).
+Ampliado el 2026-11-26 con las decisiones de inventario y costos (sección 8.14).
 
 ---
 
@@ -261,6 +262,10 @@ Diseño de una arquitectura offline-first: SQLite local como base operativa, col
 operaciones pendientes, Supabase Auth, PostgreSQL con RLS y Supabase Storage privado para
 fotos. **Nada de esto está implementado.** Esta sección registra lo decidido para guiar
 las fases siguientes.
+
+Actualización 2026-11-26: el esquema de PostgreSQL, la base SQLite local con su cola y el
+inventario están **escritos y probados** (PR #6, sección 8.14), pero no aplicados en ningún
+proyecto Supabase ni conectados a la app. La app sigue usando los JSON.
 
 Convención usada en esta sección:
 
@@ -617,8 +622,9 @@ unitario.
 
 - Campos definitivos; si el precio unitario se almacena o se calcula siempre.
 - Tratamiento de insumos sin presentación de compra (precio directo por unidad).
-- Precisión numérica (propuesta: `numeric(18,6)` en PostgreSQL, decimales como texto en
-  SQLite y cálculo con `Decimal`) y tolerancia aceptada al comparar `float` con `Decimal`.
+- ~~Precisión numérica~~ **Decidido el 2026-11-26 (8.14):** `NUMERIC` en PostgreSQL,
+  decimales como texto en SQLite y cálculo con `Decimal`. Sigue pendiente la tolerancia
+  aceptada al comparar los resultados `float` actuales con los `Decimal`.
 - Catálogo definitivo (`porción`, `cc`, `taza`…), unidades personalizadas por negocio o
   globales, y reglas de conversión.
 - Interpretaciones que se ofrecerán para cada valor ambiguo y tratamiento de los
@@ -901,3 +907,70 @@ Supabase de desarrollo; nunca con datos ni respaldos reales.
   código.
 - Confirmar que los cambios no sincronizados se pierden en los escenarios previstos y que
   la app lo comunica claramente.
+
+### 8.14 Inventario y costos de reposición (aprobado, 2026-11-26)
+
+**Problema que resuelve.** Un insumo comprado por volumen (por ejemplo un saco de 25 kg)
+se consume en parte y sube de precio antes de agotarse. Con un solo precio por insumo, la
+cotización queda desfasada o la valoración del inventario se distorsiona.
+
+**Decisiones del autor**
+
+- Cantidades en una **unidad base** por insumo: `g`, `ml` o `unidad` (catálogo de D4;
+  conversión solo dentro de la misma dimensión).
+- Dinero y cantidades con tipo exacto: `NUMERIC` en PostgreSQL, en **todo** el esquema
+  (resuelve el pendiente de precisión de 8.10).
+- Cada insumo mantiene `stock_actual`, `costo_promedio` (costo promedio ponderado: valoración
+  contable), `costo_reposicion` (último costo unitario: para cotizar sin perder margen) y la
+  fecha de ese costo.
+- Historial de compras con `cantidad_comprada` (en unidad base), `costo_total` y
+  `costo_unitario` como columna generada. Un trigger `AFTER INSERT` bloquea el insumo con
+  `SELECT … FOR UPDATE`, suma el stock, recalcula el promedio y actualiza la reposición.
+- **Cotizaciones y recetas** usan `costo_reposicion`. **Consumos y producción** descuentan
+  el stock y registran el costo contable con `costo_promedio`.
+- **Actualización manual de mercado:** cambia solo el costo de reposición y su fecha, sin
+  compra física.
+- **Alerta de desfase** cuando el costo tiene más de 30 días.
+- **Merma:** se guarda como **fracción**, igual que hoy (0,1 = 10 %). La pantalla la pide
+  y la muestra en porcentaje. El servidor exige 0 ≤ merma < 1.
+- **Stock negativo:** se permite y se marca con un aviso.
+
+**Propuestas aprobadas el mismo día**
+
+1. D5 sigue vigente: `costo_real_plato()` no cambia. El costo proyectado es una función
+   nueva, y un informe compara ambos resultados por plato. Las pantallas se cambian solo
+   cuando se apruebe esa comparación.
+2. Los insumos actuales quedan **sin unidad base ni stock** hasta confirmar su unidad caso
+   por caso (D4/D6). Mientras tanto siguen funcionando con el `precio` de hoy.
+3. Sin conexión (D7) el **servidor es la autoridad**: aplica compras y consumos en el orden
+   en que llegan, y el teléfono muestra valores **provisionales** hasta sincronizar.
+4. Registran compras, consumos, producciones y precios de mercado: `propietario`,
+   `administrador` y `editor` (amplía D1.1). El `lector` solo consulta.
+
+**Criterios de implementación** (PR #6; derivados de lo anterior y revisables)
+
+- El costo de reposición solo se reemplaza si el dato nuevo no es más antiguo que el
+  vigente, para que una compra registrada tarde sin conexión no pise un precio más nuevo.
+  El promedio sí la incorpora.
+- Si el stock previo es 0 o negativo, el promedio pasa a ser el costo de la compra.
+- Las compras y los consumos no suben la `version` del insumo, para no provocar conflictos
+  falsos con ediciones de otro dispositivo. Sí suben `sync_seq`.
+- Stock y costos los calcula solo el servidor: el cliente no puede escribirlos.
+- La unidad base no se cambia una vez fijada (D4). Compras y consumos son inmutables:
+  corregirlos queda pendiente.
+- Producción: `cantidad × factor de la unidad × porciones × (1 + merma)`. Exige que cada
+  ingrediente tenga unidad compatible con la unidad base de su insumo.
+
+**Estado**
+
+- Escrito y probado en el PR #6: 84 pruebas pgTAP en un Postgres desechable (incluidas la
+  concurrencia y la reversión) y 46 pruebas de Python.
+- No aplicado en Supabase, no conectado a las pantallas y sin migrar datos reales.
+
+**Pendientes**
+
+- Confirmar la unidad base de cada insumo actual (D6): dónde se guardan las confirmaciones
+  sin modificar los JSON originales.
+- Flujo para corregir o anular una compra o un consumo.
+- Si se conserva el historial de precios de mercado (relacionado con 8.10).
+- Tolerancia al comparar los costos `float` actuales con los `Decimal`.
