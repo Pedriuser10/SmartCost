@@ -673,7 +673,12 @@ class BaseLocal:
             return precio
 
     def registrar_venta(self, insumo_id, cantidad, unidad, precio_unitario=None, vendido_en=None):
-        """Venta directa: descuenta stock y costea al promedio. Sin precio, usa el de góndola."""
+        """Venta directa: descuenta stock y costea al promedio. Sin precio, usa el de góndola.
+
+        En el servidor solo pueden registrar ventas el propietario y el administrador (política
+        ventas_registrar). En el teléfono aún no hay roles locales (D7.1, pendiente): la venta de
+        alguien sin ese rol queda en la cola y el servidor la rechaza al sincronizar.
+        """
         vendido_en = vendido_en or datetime.now(timezone.utc)
         with self._transaccion() as cur:
             fila, estado = self._insumo_inventario(cur, insumo_id)

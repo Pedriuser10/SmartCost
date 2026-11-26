@@ -10,7 +10,9 @@ conecta a él.
 | `rollback/20261126000000_esquema_inicial.down.sql` | Reversión (DOWN). **Borra todo**: solo en desarrollo |
 | `migrations/20261127000000_ventas_precios.sql` | Venta directa, precio de venta y protección del margen |
 | `rollback/20261127000000_ventas_precios.down.sql` | Reversión: deja el esquema exactamente como tras la migración inicial |
-| `tests/database/*.test.sql` | Pruebas pgTAP (126) |
+| `migrations/20261127000001_ventas_solo_admin.sql` | Solo el propietario y el administrador registran ventas |
+| `rollback/20261127000001_ventas_solo_admin.down.sql` | Reversión de la anterior |
+| `tests/database/*.test.sql` | Pruebas pgTAP (129) |
 | `probar_en_contenedor.sh` | Aplica las migraciones, las pruebas, los DOWN y las migraciones otra vez en un Postgres desechable |
 
 ## Probar
@@ -119,9 +121,8 @@ se decida:
 Aprobado el 2026-11-26: propietario, administrador y editor registran compras, consumos,
 producciones y precios de mercado; el lector solo consulta.
 
-Aprobado el 2026-11-27: solo el propietario y el administrador aprueban el precio de góndola.
-**Por confirmar (➜):** el editor registra ventas. Está habilitado por analogía con los
-consumos, pero no tiene una aprobación explícita. Anular o corregir una venta queda denegado.
+Aprobado el 2026-11-27: solo el propietario y el administrador aprueban el precio de góndola
+y **registran ventas**. El editor no vende. Anular o corregir una venta queda denegado.
 
 ## Pendiente
 
