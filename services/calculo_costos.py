@@ -43,7 +43,7 @@ COLOR_MARGEN = {
 #     no el campo "precio" de hoy;
 #   - convierte la cantidad del ingrediente a la unidad base del insumo, solo dentro
 #     de la misma dimensión (D4: nunca masa a volumen);
-#   - la merma es un porcentaje: 10 significa 10 % → factor 1,10;
+#   - la merma se guarda como fracción, igual que hoy (0,1 = 10 % → factor 1,10);
 #   - calcula con Decimal, sin errores de redondeo de float.
 # =============================================================================
 
@@ -100,7 +100,7 @@ def costo_proyectado_plato(ingredientes, costo_mano_obra=0, ahora=None):
     """Costo de un plato para cotizar, con el costo de reposición de cada insumo.
 
     Cada ingrediente es un dict con: nombre, cantidad, unidad (de la receta),
-    unidad_base, costo_reposicion (por unidad base), merma_pct (porcentaje) y,
+    unidad_base, costo_reposicion (por unidad base), merma_pct (fracción: 0,1 = 10 %) y,
     opcionales, costo_actualizado_en (datetime con zona) y stock_actual.
     Un ingrediente que no se puede calcular no se inventa: queda en la lista
     correspondiente y el resultado se marca como incompleto.
@@ -116,7 +116,7 @@ def costo_proyectado_plato(ingredientes, costo_mano_obra=0, ahora=None):
         if ing.get("costo_reposicion") is None:
             r.sin_costo.append(nombre)
             continue
-        merma = Decimal("1") + _decimal(ing.get("merma_pct") or 0) / Decimal("100")
+        merma = Decimal("1") + _decimal(ing.get("merma_pct") or 0)
         total += cantidad_base * _decimal(ing["costo_reposicion"]) * merma
         if costo_desactualizado(ing.get("costo_actualizado_en"), ahora):
             r.desactualizados.append(nombre)

@@ -17,7 +17,7 @@ AHORA = datetime(2026, 11, 26, 12, 0, tzinfo=timezone.utc)
 def harina(**cambios):
     """Harina tras el caso del saco: promedio 1,125 $/g y reposición 1,2 $/g."""
     base = {"nombre": "Harina", "cantidad": "0.2", "unidad": "kg", "unidad_base": "g",
-            "costo_reposicion": "1.2", "merma_pct": 10, "costo_actualizado_en": AHORA - timedelta(days=2),
+            "costo_reposicion": "1.2", "merma_pct": "0.1", "costo_actualizado_en": AHORA - timedelta(days=2),
             "stock_actual": "35000"}
     base.update(cambios)
     return base
@@ -86,15 +86,16 @@ class TestFormulaActualIntacta(unittest.TestCase):
     def test_costo_real_plato_sigue_igual(self):
         self.assertEqual(cc.costo_real_plato([{"cantidad": 0.2, "precio": 1000, "merma_pct": 0.1}], 50), 270.0)
 
-    def test_comparacion_muestra_el_efecto_de_la_merma_en_porcentaje(self):
-        # Hoy merma_pct = 10 se aplica como (1 + 10): el costo sale 11 veces el neto.
-        actual = [{"cantidad": 0.2, "precio": 1000, "merma_pct": 10}]
-        proyectado = [{"nombre": "Harina", "cantidad": 0.2, "unidad": "kg", "unidad_base": "g",
-                       "costo_reposicion": 1, "merma_pct": 10}]
-        c = cc.comparar_formulas(actual, proyectado)
-        self.assertEqual(c["actual"], Decimal("2200.0"))
-        self.assertEqual(c["proyectado"], Decimal("220.00"))
-        self.assertEqual(c["diferencia"], Decimal("-1980.00"))
+    def test_mismo_precio_y_merma_dan_el_mismo_costo(self):
+        # Ambas fórmulas usan la merma como fracción (0,1 = 10 %): con el mismo precio
+        # coinciden, y la diferencia solo viene del cambio de precio (reposición).
+        actual = [{"cantidad": 0.2, "precio": 1000, "merma_pct": 0.1}]
+        igual = [{"nombre": "Harina", "cantidad": 0.2, "unidad": "kg", "unidad_base": "g",
+                  "costo_reposicion": 1, "merma_pct": 0.1}]
+        c = cc.comparar_formulas(actual, igual, 50)
+        self.assertEqual((c["actual"], c["proyectado"], c["diferencia"]), (Decimal("270.0"), Decimal("270.00"), 0))
+        subio = [dict(igual[0], costo_reposicion="1.2")]
+        self.assertEqual(cc.comparar_formulas(actual, subio, 50)["diferencia"], Decimal("44.00"))
 
 
 class TestCatalogoIgualAlDeSQL(unittest.TestCase):
