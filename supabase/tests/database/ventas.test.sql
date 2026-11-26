@@ -14,10 +14,11 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(42);
+select plan(45);
 
 insert into auth.users (id) values
     ('00000000-0000-4000-8000-000000000001'),  -- propietario
+    ('00000000-0000-4000-8000-000000000002'),  -- administrador
     ('00000000-0000-4000-8000-000000000003'),  -- editor
     ('00000000-0000-4000-8000-000000000004');  -- lector
 
@@ -56,6 +57,7 @@ $$;
 select pruebas.como('00000000-0000-4000-8000-000000000001');
 insert into pruebas.ids values ('negocio', public.crear_negocio('Almacén de prueba'));
 insert into public.miembros (negocio_id, usuario_id, rol) values
+    (pruebas.id('negocio'), '00000000-0000-4000-8000-000000000002', 'administrador'),
     (pruebas.id('negocio'), '00000000-0000-4000-8000-000000000003', 'editor'),
     (pruebas.id('negocio'), '00000000-0000-4000-8000-000000000004', 'lector');
 
@@ -95,12 +97,17 @@ select is((pruebas.p('jugo')).margen_bajo, false, 'sin alerta de margen');
 select isnt((pruebas.p('jugo')).precio_actualizado_en, null, 'se registra cuándo se aprobó el precio');
 
 -- ---------- venta parcial ----------
+-- Registran ventas solo el propietario y el administrador (decisión del 2026-11-27)
 select pruebas.como('00000000-0000-4000-8000-000000000003');
+select throws_ok($$ select pruebas.vender('jugo', 1) $$, '42501', null, 'el editor no registra ventas');
+select is((pruebas.p('jugo')).stock_actual, 24::numeric, 'el intento rechazado no descuenta stock');
+
+select pruebas.como('00000000-0000-4000-8000-000000000001');
 insert into pruebas.ids values ('venta1', gen_random_uuid());
 select lives_ok($$
     insert into public.ventas (id, negocio_id, insumo_id, cantidad)
     values (pruebas.id('venta1'), pruebas.id('negocio'), pruebas.id('jugo'), 10)
-$$, 'el editor registra una venta de 10 unidades');
+$$, 'el propietario registra una venta de 10 unidades');
 select is((select total from public.ventas where id = pruebas.id('venta1')), 8500::numeric,
           'venta: total $8.500 al precio de góndola');
 select is((select ingreso_neto from public.ventas where id = pruebas.id('venta1')), 7142.857143::numeric,
@@ -130,7 +137,6 @@ select is((public.fijar_precio_venta(pruebas.id('jugo'))).precio_venta, 1020::nu
           'el propietario aprueba el alza a $1.020');
 select is((pruebas.p('jugo')).margen_bajo, false, 'margen recuperado');
 
-select pruebas.como('00000000-0000-4000-8000-000000000003');
 select is((pruebas.vender('jugo', 5)).costo_venta, 2815.789475::numeric,
           'la venta siguiente se costea al promedio (5 × 563,157895)');
 select is((pruebas.vender('jugo', 1, 900)).total, 900::numeric,
@@ -145,6 +151,9 @@ select is((pruebas.p('jugo')).costo_promedio, 563.157895::numeric, 'ni el costo 
 select is((pruebas.p('jugo')).margen_bajo, true, 'con $1.020 y costo 650 el margen vuelve a caer');
 
 -- ---------- reglas ----------
+select pruebas.como('00000000-0000-4000-8000-000000000002');
+select lives_ok($$ select pruebas.vender('jugo', 1) $$, 'el administrador registra ventas');
+select pruebas.como('00000000-0000-4000-8000-000000000001');
 select throws_ok($$ select pruebas.vender('harina', 1, 100) $$, '22023', null,
                  'un insumo que no está a la venta no se vende');
 select is((pruebas.vender('jugo', 40)).stock_negativo, true, 'vender más que el stock: se registra con aviso');
