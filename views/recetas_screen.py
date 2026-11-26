@@ -1,6 +1,8 @@
 import os
 import uuid
 
+from models import confirmaciones
+
 from kivymd.uix.dialog import MDDialog, MDDialogHeadlineText, MDDialogContentContainer, MDDialogButtonContainer
 from kivy.metrics import dp
 from kivy.utils import platform
@@ -61,6 +63,12 @@ class RecetasScreen(MDScreen):
         tabs.add_widget(self.btn_platos)
         root.add_widget(tabs)
 
+        # Acceso a la confirmación de unidades (D6): no cambia los insumos, se guarda aparte
+        self.btn_unidades = MDButton(MDButtonText(text="Confirmar unidades"), style="tonal",
+                                     size_hint_y=None, height=dp(44))
+        self.btn_unidades.bind(on_release=lambda *_: setattr(self.manager, "current", "confirmar_unidades"))
+        root.add_widget(self.btn_unidades)
+
         scroll = MDScrollView()
         self.container = MDBoxLayout(orientation="vertical", spacing=dp(6), size_hint_y=None)
         self.container.bind(minimum_height=self.container.setter("height"))
@@ -90,8 +98,19 @@ class RecetasScreen(MDScreen):
         self._marcar_tab_activo()
         self.refrescar()
 
+    def _actualizar_boton_unidades(self):
+        try:
+            r = confirmaciones.resumen(storage.get_insumos())
+        except confirmaciones.ErrorConfirmacion:
+            set_texto_boton(self.btn_unidades, "Confirmar unidades (revisar archivo)")
+            return
+        faltan = r[confirmaciones.PENDIENTE] + r[confirmaciones.REVISAR]
+        set_texto_boton(self.btn_unidades, f"Confirmar unidades ({faltan} pendientes)" if faltan
+                        else "Unidades confirmadas ✓")
+
     def refrescar(self):
         self.container.clear_widgets()
+        self._actualizar_boton_unidades()
         if self.modo == "insumos":
             for insumo in storage.get_insumos():
                 texto = (
