@@ -33,7 +33,7 @@ source.exclude_dirs = tests,bin,venv,.git,.buildozer,__pycache__,herramientas
 # Do not prefix with './'
 #source.exclude_patterns = license,images/*/*.jpg
 # usuarios.json contiene las cuentas del PC; grafico_*.png son restos del gráfico antiguo
-source.exclude_patterns = data/usuarios.json,data/imagenes/grafico_*.png,recursos/marca/icono.png,recursos/marca/presplash.png
+source.exclude_patterns = data/usuarios.json,data/analytics_events.json,data/imagenes/grafico_*.png,recursos/marca/icono.png,recursos/marca/presplash.png
 
 # (str) Application versioning (method 1)
 version = 1.0

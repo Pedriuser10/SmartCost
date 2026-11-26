@@ -236,7 +236,7 @@ class LoginScreen(MDScreen):
         else:
             ok, msg = auth.iniciar_sesion(usuario, clave)
             if ok:
-                registrar_evento("login_exitoso", {"usuario": usuario.strip()})
+                registrar_evento("login_exitoso")  # sin nombre de usuario: dato personal
                 self.manager.current = "inicio"
             else:
                 registrar_evento("login_fallido", {"motivo": msg})

@@ -17,7 +17,6 @@ from kivymd.uix.filemanager import MDFileManager
 from models import storage, fotos
 from kivymd.uix.button import MDButton, MDButtonText, MDIconButton
 from views.utils import set_texto_boton
-from views.utils import set_texto_boton
 from services.analytics_service import registrar_evento
 
 EXTENSIONES_FOTO = (".png", ".jpg", ".jpeg", ".webp")
@@ -315,20 +314,20 @@ class RecetasScreen(MDScreen):
             self._avisar("Los montos no pueden ser negativos.")
             return
         if self._plato_editando:
-         storage.update_plato(
-             self._plato_editando["id"], nombre, precio_venta, mano_obra, self._imagen_seleccionada
-         )
+            storage.update_plato(
+                self._plato_editando["id"], nombre, precio_venta, mano_obra, self._imagen_seleccionada
+            )
         else:
-         storage.add_plato(nombre, precio_venta, mano_obra, self._imagen_seleccionada)
-         registrar_evento("plato_creado", {
-             "nombre_plato": nombre,
-             "precio_venta": precio_venta,
-             "costo_mano_obra": mano_obra,
-             "tiene_imagen": bool(self._imagen_seleccionada)
-         })
+            storage.add_plato(nombre, precio_venta, mano_obra, self._imagen_seleccionada)
+            registrar_evento("plato_creado", {
+                "nombre_plato": nombre,
+                "precio_venta": precio_venta,
+                "costo_mano_obra": mano_obra,
+                "tiene_imagen": bool(self._imagen_seleccionada),
+            })
         self.dialog.dismiss()
         self.refrescar()
-        
+
     def _crear_vista_foto(self, ruta):
         """Recuadro de la foto: muestra la elegida o, si no hay, un aviso de que se puede tocar."""
         tarjeta = MDCard(size_hint_y=None, height=dp(150), radius=[dp(8)], theme_bg_color="Custom",
