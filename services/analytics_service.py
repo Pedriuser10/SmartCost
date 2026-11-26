@@ -1,50 +1,55 @@
+"""Telemetría local: registra eventos de uso en <user_data_dir>/datos/analytics_events.json.
+
+- Vive junto a los demás datos persistentes (no en la carpeta del código, que en Android
+  se reemplaza al actualizar la app y que además se empaqueta en el APK).
+- Se escribe con el guardado atómico de models.rutas, igual que el resto de los datos.
+- Guarda como máximo MAX_EVENTOS (los más recientes) para que el archivo no crezca sin límite.
+- Nunca registra datos personales: ni nombres de usuario, ni contraseñas, ni correos.
+- Nunca interrumpe la app: cualquier fallo queda en el log y el evento se descarta.
+"""
 import json
 import logging
 import os
 from datetime import datetime
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
-)
+from models import rutas
 
-EVENTS_FILE = os.path.join("data", "analytics_events.json")
+NOMBRE_ARCHIVO = "analytics_events.json"
+MAX_EVENTOS = 1000
+
+log = logging.getLogger(__name__)
+
+
+def archivo_eventos():
+    return os.path.join(rutas.datos_dir(), NOMBRE_ARCHIVO)
+
+
+def _leer_eventos(ruta):
+    if not os.path.exists(ruta):
+        return []
+    try:
+        with open(ruta, "r", encoding="utf-8") as f:
+            eventos = json.load(f)
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        log.error("Archivo de eventos corrupto, se empieza uno nuevo: %s", e)
+        return []
+    return eventos if isinstance(eventos, list) else []
 
 
 def registrar_evento(nombre_evento: str, propiedades: dict = None) -> None:
-    """
-    Registra un evento de telemetría en data/analytics_events.json
-    con programación defensiva (try-except) y logging estándar.
-    """
+    """Agrega un evento al archivo de telemetría. No lanza excepciones."""
     evento = {
         "evento": nombre_evento,
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "propiedades": propiedades if propiedades is not None else {}
+        "propiedades": dict(propiedades) if propiedades else {},
     }
-
     try:
-        os.makedirs(os.path.dirname(EVENTS_FILE), exist_ok=True)
-
-        if os.path.exists(EVENTS_FILE):
-            with open(EVENTS_FILE, "r", encoding="utf-8") as f:
-                try:
-                    eventos = json.load(f)
-                    if not isinstance(eventos, list):
-                        eventos = []
-                except json.JSONDecodeError as e:
-                    logging.error(f"Archivo JSON corrupto al leer eventos: {e}")
-                    eventos = []
-        else:
-            eventos = []
-
+        ruta = archivo_eventos()
+        eventos = _leer_eventos(ruta)
         eventos.append(evento)
-
-        with open(EVENTS_FILE, "w", encoding="utf-8") as f:
-            json.dump(eventos, f, indent=4, ensure_ascii=False)
-
-        logging.info(f"Evento registrado: {nombre_evento}")
-
-    except (IOError, OSError) as e:
-        logging.error(f"Error de entrada/salida al guardar el evento '{nombre_evento}': {e}")
-    except Exception as e:
-        logging.error(f"Error inesperado en analytics_service: {e}")
+        rutas.escribir_json_atomico(ruta, eventos[-MAX_EVENTOS:])
+        log.info("Evento registrado: %s", nombre_evento)
+    except rutas.DatosNoDisponibles as e:
+        log.warning("Telemetría desactivada, datos no disponibles (%s): %s", nombre_evento, e)
+    except Exception as e:  # la telemetría nunca debe romper la app
+        log.error("No se pudo guardar el evento '%s': %s", nombre_evento, e)

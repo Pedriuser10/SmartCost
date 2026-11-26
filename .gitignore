@@ -34,3 +34,6 @@ respaldos/
 .DS_Store
 .idea/
 .vscode/
+
+# Telemetría local: eventos de uso de cada instalación (no se versionan)
+data/analytics_events.json
