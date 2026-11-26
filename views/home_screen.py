@@ -1,104 +1,171 @@
+"""Pantalla de inicio (diseño aprobado en el prototipo del 2026-11-26).
+
+Marca arriba con Configuración y Cerrar sesión, saludo, un aviso con las unidades que
+faltan por confirmar (solo mientras falten) y las herramientas en tarjetas.
+"""
 from kivy.metrics import dp
-from kivymd.uix.screen import MDScreen
-from kivymd.uix.boxlayout import MDBoxLayout
-from kivymd.uix.gridlayout import MDGridLayout
-from kivymd.uix.scrollview import MDScrollView
-from kivymd.uix.label import MDLabel
-from kivymd.uix.floatlayout import MDFloatLayout
-from kivymd.uix.fitimage import FitImage
+from kivy.uix.image import Image
 from kivy.uix.widget import Widget
-from kivymd.uix.button import MDButton , MDButtonText , MDButtonIcon
-from widgets.module_card import ModuleCard, ALTO_MINIMO
+from kivy.utils import get_color_from_hex
+from kivymd.uix.boxlayout import MDBoxLayout
+from kivymd.uix.card import MDCard
+from kivymd.uix.gridlayout import MDGridLayout
+from kivymd.uix.button import MDIconButton
+from kivymd.uix.label import MDIcon, MDLabel
+from kivymd.uix.progressindicator import MDLinearProgressIndicator
+from kivymd.uix.screen import MDScreen
+from kivymd.uix.scrollview import MDScrollView
+
+from models import confirmaciones, storage
 from services import auth
 from views import marca
-from kivymd.uix.card import MDCard
+from views.fondo import FONDO, FondoPuntos
+from views.utils import alto_segun_texto
+from widgets.module_card import ALTO_MINIMO, ModuleCard
 
+BORDE = get_color_from_hex("#E1E7EE")
+BORDE_AVISO = get_color_from_hex("#B9DEDD")
+ACENTO = marca.TURQUESA_OSCURO
+ACENTO_SUAVE = get_color_from_hex("#E3F1F1")
+ICONO_GRIS = get_color_from_hex("#4A5868")
+
+# (título, texto, ícono, color del ícono, fondo del cuadro, pantalla)
 MODULES = [
-    ("Calcular Costos", "Calcula el costo real de tus platos y recetas",
-     "calculator", (0.2, 0.8, 0.4, 1), "calcular_costos"),
-    ("Menú", "Tus platos con foto, estilo carta visual",
-     "silverware-fork-knife", (0.95, 0.6, 0.1, 1), "menu_visual"),
-    ("Ingeniería de Menú", "Analiza la rentabilidad y popularidad del menú",
-     "chart-bar", (0.2, 0.6, 1, 1), "ingenieria_de_menu"),
-    ("Mis Recetas", "Administra tus recetas e ingredientes",
-     "book-open-variant", (1, 0.6, 0.2, 1), "mis_recetas"),
-    ("Mis Plantillas", "Acelera tus cálculos con plantillas base",
-     "file-document-outline", (0.6, 0.4, 0.9, 1), "mis_plantillas"),
-    ("Acerca de", "Información de la app y soporte técnico",
-     "information-outline", (0.9, 0.3, 0.3, 1), "acerca_de"),
+    ("Calcular costos", "Costo real y margen de tus platos", "calculator-variant-outline",
+     "#1B7A43", "#E3F3EA", "calcular_costos"),
+    ("Menú", "Tus platos con foto, como una carta", "silverware-fork-knife",
+     "#A14700", "#FFF1DB", "menu_visual"),
+    ("Ingeniería de menú", "Rentabilidad y popularidad", "chart-bar",
+     "#1D5FBF", "#E3EEFC", "ingenieria_de_menu"),
+    ("Mis recetas", "Platos, insumos e ingredientes", "book-open-variant",
+     "#B3410E", "#FDE9DC", "mis_recetas"),
+    ("Plantillas", "Platos base para empezar rápido", "file-document-outline",
+     "#6D3FC0", "#EFE7FB", "mis_plantillas"),
+    ("Acerca de", "La app y soporte", "information-outline",
+     "#4A5868", "#EEF2F5", "acerca_de"),
 ]
 
 
-from kivymd.uix.button import MDButton, MDButtonText, MDButtonIcon
-from kivy.uix.widget import Widget
+def _etiqueta(texto, estilo=("Body", "medium"), color=marca.TEXTO, negrita=False, **kw):
+    return alto_segun_texto(MDLabel(text=texto, font_style=estilo[0], role=estilo[1], bold=negrita,
+                                    theme_text_color="Custom", text_color=color, **kw))
+
+
+def _boton_icono(icono, al_tocar):
+    b = MDIconButton(icon=icono, style="outlined", theme_icon_color="Custom", icon_color=ICONO_GRIS,
+                     theme_line_color="Custom", line_color=BORDE, theme_bg_color="Custom",
+                     md_bg_color=(1, 1, 1, 1), pos_hint={"center_y": 0.5})
+    b.bind(on_release=lambda *_: al_tocar())
+    return b
+
 
 class HomeScreen(MDScreen):
     def __init__(self, **kwargs):
-        super().__init__(name="inicio", md_bg_color=(0.97, 0.97, 0.99, 1), **kwargs)
+        super().__init__(name="inicio", md_bg_color=FONDO, **kwargs)
+        self.add_widget(FondoPuntos())
 
-        # Contenedor principal vertical
-        main_layout = MDBoxLayout(orientation="vertical", padding=dp(24), spacing=dp(16))
+        scroll = MDScrollView(do_scroll_x=False)
+        raiz = MDBoxLayout(orientation="vertical", adaptive_height=True, spacing=dp(20),
+                           padding=(dp(20), dp(20), dp(20), dp(24)))
 
-        # Barra superior con el botón de Configuración a la derecha
-        top_bar = MDBoxLayout(size_hint_y=None, height=dp(48))
-        top_bar.add_widget(Widget())  # Espaciador invisible para empujar el botón a la derecha
-        
-        btn_config = MDButton(
-            MDButtonIcon(icon="cog-outline"),
-            MDButtonText(text="Configuración"),
-            style="text",
-            on_release=lambda x: setattr(self.manager, "current", "configuracion")
-        )
-        top_bar.add_widget(btn_config)
-        btn_salir = MDButton(
-            MDButtonIcon(icon="logout"),
-            MDButtonText(text="Salir"),
-            style="text",
-            on_release=lambda x: self._cerrar_sesion(),
-        )
-        top_bar.add_widget(btn_salir)
-        main_layout.add_widget(top_bar)
+        # Barra superior: marca a la izquierda, Configuración y Cerrar sesión a la derecha
+        barra = MDBoxLayout(size_hint_y=None, height=dp(48), spacing=dp(10))
+        sello = MDBoxLayout(size_hint=(None, None), size=(dp(40), dp(40)), padding=dp(5),
+                            md_bg_color=marca.AZUL_OSCURO, radius=[dp(11)], pos_hint={"center_y": 0.5})
+        sello.add_widget(Image(source=marca.LOGO))
+        barra.add_widget(sello)
+        barra.add_widget(MDLabel(text=marca.nombre_marca(), markup=True, font_style="Title", role="large",
+                                 bold=True, pos_hint={"center_y": 0.5}))
+        barra.add_widget(_boton_icono("cog-outline", lambda: setattr(self.manager, "current", "configuracion")))
+        barra.add_widget(_boton_icono("logout", self._cerrar_sesion))
+        raiz.add_widget(barra)
 
-        # Títulos de la app
-        header = MDBoxLayout(orientation="vertical", size_hint_y=None, height=dp(80), spacing=dp(4))
-        header.add_widget(MDLabel(text=marca.nombre_marca(), markup=True, font_style="Headline", role="medium", bold=True, halign="center"))
-        header.add_widget(MDLabel(text="Calcula, organiza y haz crecer tu negocio", font_style="Title", role="medium", halign="center", theme_text_color="Secondary"))
-        main_layout.add_widget(header)
+        saludo = MDBoxLayout(orientation="vertical", adaptive_height=True, spacing=dp(4),
+                             padding=(0, dp(6), 0, 0))
+        self.lbl_saludo = _etiqueta("", ("Headline", "small"), negrita=True)
+        saludo.add_widget(self.lbl_saludo)
+        saludo.add_widget(_etiqueta("¿Qué quieres hacer hoy?", ("Body", "large"), marca.TEXTO_SUAVE))
+        raiz.add_widget(saludo)
 
-        
-        # Alto inicial distinto de 0: el ripple de MDCard crea su FBO con este tamaño (ver
-        # views.utils.alto_segun_contenido); luego el contenedor sigue el alto de la cuadrícula
-        container = MDCard(
-            style="outlined",
-            line_color=(0.8, 0.85, 0.9, 1),
-            padding=dp(16),
-            radius=[dp(16)],
-            md_bg_color=(0.95, 0.96, 0.99, 1),
-            size_hint_y=None, height=dp(100),
-        )
-        container.bind(minimum_height=container.setter("height"))
+        # Aviso de unidades por confirmar: se muestra solo mientras falten
+        self.slot_aviso = MDBoxLayout(orientation="vertical", adaptive_height=True)
+        self.aviso = self._armar_aviso()
+        raiz.add_widget(self.slot_aviso)
 
-        # Cuadrícula de 6 módulos; cada fila toma el alto de su tarjeta más alta
-        grid = MDGridLayout(cols=2, spacing=dp(16), size_hint_y=None)
-        grid.bind(minimum_height=grid.setter("height"))
+        raiz.add_widget(_etiqueta("HERRAMIENTAS", ("Label", "large"), marca.TEXTO_SUAVE, negrita=True))
+        grid = MDGridLayout(cols=2, spacing=dp(12), adaptive_height=True)
+        self.grid = grid
+        # 2 columnas en el teléfono, 3 cuando la ventana es ancha (PC o tablet)
+        grid.bind(width=self._ajustar_columnas)
         self.tarjetas = []
-        for title, subtitle, icon, color, screen_name in MODULES:
-            card = ModuleCard(title=title, subtitle=subtitle, icon=icon, icon_color=color, md_bg_color=color) # Ajusta los colores pastel en la lista MODULES
-            card.bind(on_release=lambda _w, name=screen_name: setattr(self.manager, "current", name))
+        for titulo, texto, icono, color, fondo, pantalla in MODULES:
+            card = ModuleCard(title=titulo, subtitle=texto, icon=icono, icon_color=get_color_from_hex(color),
+                              tile_color=get_color_from_hex(fondo))
+            card.bind(on_release=lambda _w, p=pantalla: setattr(self.manager, "current", p))
             card.bind(minimum_height=self._igualar_filas)
             grid.add_widget(card)
             self.tarjetas.append(card)
+        raiz.add_widget(grid)
 
-        container.add_widget(grid)
-        scroll = MDScrollView(do_scroll_x=False)
-        scroll.add_widget(container)
-        main_layout.add_widget(scroll)
-        self.add_widget(main_layout)
+        scroll.add_widget(raiz)
+        self.add_widget(scroll)
+
+    def _armar_aviso(self):
+        aviso = MDCard(style="outlined", theme_bg_color="Custom", md_bg_color=(1, 1, 1, 1),
+                       theme_line_color="Custom", line_color=BORDE_AVISO, radius=[dp(16)],
+                       orientation="horizontal", padding=(dp(16), dp(14), dp(12), dp(14)), spacing=dp(14),
+                       size_hint_y=None, height=dp(80))
+        aviso.bind(minimum_height=aviso.setter("height"))  # alto inicial ≠ 0 (ver views.utils)
+        aviso.bind(on_release=lambda *_: setattr(self.manager, "current", "confirmar_unidades"))
+        cuadro = MDBoxLayout(size_hint=(None, None), size=(dp(42), dp(42)), md_bg_color=ACENTO_SUAVE,
+                             radius=[dp(12)], pos_hint={"center_y": 0.5})
+        cuadro.add_widget(MDIcon(icon="scale-balance", theme_text_color="Custom", text_color=ACENTO,
+                                 pos_hint={"center_x": 0.5, "center_y": 0.5}))
+        aviso.add_widget(cuadro)
+        textos = MDBoxLayout(orientation="vertical", adaptive_height=True, spacing=dp(6),
+                             pos_hint={"center_y": 0.5})
+        textos.add_widget(_etiqueta("Confirma las unidades de tus insumos", ("Body", "large"), negrita=True))
+        self.lbl_aviso = _etiqueta("", ("Body", "medium"), marca.TEXTO_SUAVE)
+        textos.add_widget(self.lbl_aviso)
+        self.barra_aviso = MDLinearProgressIndicator(size_hint_y=None, height=dp(6), value=0,
+                                                     indicator_color=ACENTO, track_color=BORDE)
+        textos.add_widget(self.barra_aviso)
+        aviso.add_widget(textos)
+        aviso.add_widget(MDIcon(icon="chevron-right", theme_text_color="Custom", text_color=marca.TEXTO_SUAVE,
+                                size_hint_x=None, width=dp(24), pos_hint={"center_y": 0.5}))
+        return aviso
+
+    def on_pre_enter(self, *args):
+        usuario = auth.usuario_actual
+        self.lbl_saludo.text = f"Hola, {usuario}" if usuario else "Hola"
+        self._actualizar_aviso()
+
+    def _actualizar_aviso(self):
+        self.slot_aviso.clear_widgets()
+        try:
+            insumos = storage.get_insumos()
+            resumen = confirmaciones.resumen(insumos)
+        except Exception:
+            return  # si no se pueden leer los datos, simplemente no se muestra el aviso
+        total = len(insumos)
+        listos = resumen[confirmaciones.CONFIRMADO]
+        if total == 0 or listos == total:
+            return
+        self.lbl_aviso.text = f"{listos} de {total} listos · así podrás llevar inventario"
+        self.barra_aviso.value = 100 * listos / total
+        self.slot_aviso.add_widget(self.aviso)
+
+    def _ajustar_columnas(self, grid, ancho):
+        columnas = 3 if ancho > dp(720) else 2
+        if grid.cols != columnas:
+            grid.cols = columnas
+            self._igualar_filas()
 
     def _igualar_filas(self, *args):
-        """Cada tarjeta mide lo que necesita su texto, y las dos de una fila quedan iguales."""
-        for i in range(0, len(self.tarjetas), 2):
-            fila = self.tarjetas[i:i + 2]
+        """Cada tarjeta mide lo que necesita su texto, y las de una misma fila quedan iguales."""
+        n = self.grid.cols
+        for i in range(0, len(self.tarjetas), n):
+            fila = self.tarjetas[i:i + n]
             alto = max([ALTO_MINIMO] + [t.minimum_height for t in fila])
             for t in fila:
                 t.height = alto
