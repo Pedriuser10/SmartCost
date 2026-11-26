@@ -12,7 +12,8 @@
 --        detección de conflictos por versión
 --   Inventario (aprobado el 2026-11-26): stock en unidad base, costo promedio
 --        ponderado, costo de reposición, alerta de 30 días, stock negativo con
---        aviso, merma expresada en porcentaje, NUMERIC para dinero y cantidades.
+--        aviso, NUMERIC para dinero y cantidades. La merma se guarda como fracción
+--        (0,1 = 10 %), igual que hoy en la app: la pantalla la pide en porcentaje.
 --
 -- Regla de permisos: se aplica solo lo marcado ✅ o ❌ en la matriz de 8.1.
 -- Lo marcado ➜ (derivado, sin confirmar) o ⏳ (pendiente) queda DENEGADO hasta
@@ -89,7 +90,8 @@ create table public.insumos (
     -- Datos de hoy, sin reinterpretar (D4/D6): los usa la fórmula actual
     unidad                text not null default '',
     precio                numeric(18, 6) not null default 0 check (precio >= 0),
-    merma_pct             numeric(9, 4) not null default 0 check (merma_pct >= 0),   -- porcentaje: 10 = 10 %
+    merma_pct             numeric(9, 6) not null default 0
+                          check (merma_pct >= 0 and merma_pct < 1),   -- fracción: 0,1 = 10 % (como en la app)
     -- Inventario: solo con unidad base confirmada. Estas columnas las escribe el servidor.
     unidad_base           text references public.unidades (codigo)
                           check (unidad_base in ('g', 'ml', 'unidad')),
@@ -509,7 +511,7 @@ end
 $$;
 
 -- Producción: descuenta cada ingrediente de la receta según las porciones.
---   cantidad consumida = cantidad × factor de su unidad × porciones × (1 + merma_pct / 100)
+--   cantidad consumida = cantidad × factor de su unidad × porciones × (1 + merma_pct)
 -- Exige que todos los ingredientes tengan unidad y que sea de la misma dimensión que la
 -- unidad base del insumo (D4: no se convierte masa en volumen). Idempotente por p_id.
 create function public.registrar_produccion(
@@ -557,7 +559,7 @@ begin
 
     for r in
         select pi.insumo_id,
-               round(pi.cantidad * u.factor * p_porciones * (1 + i.merma_pct / 100), 6) as cantidad
+               round(pi.cantidad * u.factor * p_porciones * (1 + i.merma_pct), 6) as cantidad
         from public.plato_insumos pi
         join public.insumos i on i.id = pi.insumo_id
         join public.unidades u on u.codigo = pi.unidad

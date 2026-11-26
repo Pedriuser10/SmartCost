@@ -4,7 +4,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(45);
+select plan(46);
 
 -- ---------- preparación ----------
 insert into auth.users (id) values
@@ -87,7 +87,7 @@ select lives_ok($$
     insert into pruebas.ids values ('insumo', gen_random_uuid()), ('plato', gen_random_uuid()),
                                    ('rel', gen_random_uuid()), ('insumo2', gen_random_uuid());
     insert into public.insumos (id, negocio_id, nombre, unidad, precio, merma_pct)
-    values (pruebas.id('insumo'), pruebas.id('negocio'), 'Tomate', '10kg', 1200, 5),
+    values (pruebas.id('insumo'), pruebas.id('negocio'), 'Tomate', '10kg', 1200, 0.05),
            (pruebas.id('insumo2'), pruebas.id('negocio'), 'Sal', 'kg', 800, 0);
     insert into public.platos (id, negocio_id, nombre, precio_venta, mano_obra)
     values (pruebas.id('plato'), pruebas.id('negocio'), 'Ensalada', 4500, 500);
@@ -144,6 +144,9 @@ $$, '42501', null, 'un registro eliminado no se restaura (⏳)');
 select throws_ok($$
     insert into public.insumos (negocio_id, nombre, precio) values (pruebas.id('negocio'), 'Malo', -1)
 $$, '23514', null, 'no se aceptan precios negativos');
+select throws_ok($$
+    insert into public.insumos (negocio_id, nombre, merma_pct) values (pruebas.id('negocio'), 'Malo', 10)
+$$, '23514', null, 'la merma es una fracción: 10 se rechaza (10 % se guarda como 0,1)');
 
 select throws_ok($$
     delete from public.insumos where id = pruebas.id('insumo2')

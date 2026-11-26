@@ -8,7 +8,7 @@ conecta a él.
 |---|---|
 | `migrations/20261126000000_esquema_inicial.sql` | Migración (UP): tablas, restricciones, funciones, triggers, RLS |
 | `rollback/20261126000000_esquema_inicial.down.sql` | Reversión (DOWN). **Borra todo**: solo en desarrollo |
-| `tests/database/*.test.sql` | Pruebas pgTAP (83) |
+| `tests/database/*.test.sql` | Pruebas pgTAP (84) |
 | `probar_en_contenedor.sh` | Aplica UP, pruebas, DOWN y UP otra vez en un Postgres desechable |
 
 ## Probar
@@ -48,7 +48,8 @@ cantidades se guardan como `numeric`.
 - **Consumo** (`insert` en `consumos_insumos`): descuenta el stock y guarda el costo contable
   al promedio vigente. Si el stock queda negativo, se registra y `stock_negativo = true`.
 - **Producción** (`registrar_produccion(id, plato, porciones)`): consume cada ingrediente.
-  La cantidad es `cantidad × factor de la unidad × porciones × (1 + merma_pct / 100)`.
+  La cantidad es `cantidad × factor de la unidad × porciones × (1 + merma_pct)`. La merma
+  se guarda como fracción (0,1 = 10 %), igual que en la app.
   La operación es idempotente por `id`.
 - **Alza del proveedor sin compra** (`actualizar_costo_reposicion(insumo, costo)`): cambia
   solo el costo de reposición y su fecha.

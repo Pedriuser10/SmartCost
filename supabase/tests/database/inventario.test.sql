@@ -60,7 +60,7 @@ select pruebas.como('00000000-0000-4000-8000-000000000003');
 insert into pruebas.ids values ('harina', gen_random_uuid()), ('aceite', gen_random_uuid()),
                                ('sin_base', gen_random_uuid()), ('c1', gen_random_uuid());
 insert into public.insumos (id, negocio_id, nombre, unidad, merma_pct, unidad_base) values
-    (pruebas.id('harina'),   pruebas.id('negocio'), 'Harina',  '25kg', 10, 'g'),
+    (pruebas.id('harina'),   pruebas.id('negocio'), 'Harina',  '25kg', 0.1, 'g'),   -- merma 10 %
     (pruebas.id('aceite'),   pruebas.id('negocio'), 'Aceite',  'lt',    0, 'ml'),
     (pruebas.id('sin_base'), pruebas.id('negocio'), 'Comino',  '10kg',  0, null);
 
@@ -141,7 +141,7 @@ insert into public.plato_insumos (negocio_id, plato_id, insumo_id, cantidad, uni
 
 -- 3 porciones × 0,2 kg × 1000 g/kg × (1 + 10 %) = 660 g; costo 660 × 1,233333 = 813,99978
 select is((public.registrar_produccion(pruebas.id('prod'), pruebas.id('pan'), 3)).costo_total,
-          813.999780::numeric, 'producción: 660 g de harina al costo promedio (merma en %)');
+          813.999780::numeric, 'producción: 660 g de harina al costo promedio (merma 10 %)');
 select is((pruebas.insumo('harina')).stock_actual, 5340::numeric, 'la producción descuenta 660 g');
 select is((public.registrar_produccion(pruebas.id('prod'), pruebas.id('pan'), 3)).costo_total,
           813.999780::numeric, 'reintentar la misma producción no la aplica dos veces');
