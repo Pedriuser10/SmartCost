@@ -134,8 +134,13 @@ class RecetasScreen(MDScreen):
 
     def _fila(self, texto, on_tap, imagen=None):
         fila = MDBoxLayout(orientation="horizontal", size_hint_y=None, height=dp(44), spacing=dp(8))
-        if imagen and os.path.exists(imagen):
-            fila.add_widget(FitImage(source=imagen, size_hint=(None, None), size=(dp(40), dp(40)), radius=[dp(6)]))
+        # En el JSON se guarda solo el nombre del archivo (o una ruta antigua): ruta_imagen() la
+        # busca en las fotos del usuario (<user_data_dir>/datos/imagenes) y en las de ejemplo.
+        # os.path.exists(imagen) no sirve: depende de la carpeta desde donde se ejecuta la app.
+        ruta = storage.ruta_imagen(imagen)
+        if ruta:
+            fila.add_widget(FitImage(source=ruta, size_hint=(None, None), size=(dp(40), dp(40)), radius=[dp(6)],
+                                     pos_hint={"center_y": 0.5}))
         lbl = MDLabel(text=texto, theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1))
         # En pantallas angostas el texto ocupa varias líneas: la fila crece para no pisar la siguiente
         lbl.bind(texture_size=lambda _l, s: setattr(fila, "height", max(dp(44), s[1] + dp(8))))
