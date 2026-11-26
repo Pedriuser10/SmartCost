@@ -102,6 +102,56 @@ def sugerir(texto_unidad):
     return Sugerencia(base, numero, codigo, codigo)
 
 
+# ---------- opciones para la pantalla (la unidad base sale de la unidad elegida) ----------
+
+NOMBRES = {"g": "gramos (g)", "kg": "kilos (kg)", "mg": "miligramos (mg)", "ml": "mililitros (ml)",
+           "l": "litros (l)", "unidad": "unidades", "docena": "docenas"}
+SINGULAR_BASE = {"g": "gramo", "ml": "mililitro", "unidad": "unidad"}
+# Unidades que se ofrecen para anotar las recetas, por unidad base (mg queda fuera por rara)
+UNIDADES_RECETA = {"g": ("kg", "g"), "ml": ("l", "ml"), "unidad": ("unidad", "docena")}
+
+
+def base_de(unidad):
+    """Unidad base de una unidad del catálogo: kg → g, l → ml, docena → unidad."""
+    if unidad not in UNIDADES:
+        raise ErrorConfirmacion(f"Unidad desconocida ({unidad})")
+    return UNIDADES[unidad][1]
+
+
+def cantidad_texto(numero, unidad):
+    n = f"{Decimal(str(numero)).normalize():f}".replace(".", ",")
+    corto = {"unidad": "unidad" if n == "1" else "unidades", "docena": "docena" if n == "1" else "docenas"}
+    return f"{n} {corto.get(unidad, unidad)}"
+
+
+def numero_suelto(texto_unidad):
+    """El número de una unidad sin palabra ("12"), o None."""
+    m = _PATRON.match(texto_unidad or "")
+    if not m or m.group(2) or not m.group(1):
+        return None
+    n = Decimal(m.group(1).replace(",", "."))
+    return n if n > 0 else None
+
+
+def opciones_compra(insumo):
+    """Opciones para "¿Qué compras por $X?": (contenido, unidad, detalle). La primera es la sugerida.
+
+    Con sugerencia ("10kg"): 10 kg (sugerido) y, si no es 1, también 1 kg.
+    Con un número suelto ("12"): 12 unidades, 12 kg y 12 l como atajos, sin marcar ninguno.
+    Sin nada interpretable: ninguna; queda solo "Otra cantidad".
+    """
+    sug = sugerir(insumo["unidad"])
+    if sug:
+        opciones = [(sug.contenido, sug.unidad_contenido, f"Sugerido por «{insumo['unidad']}»")]
+        if sug.contenido != 1:
+            opciones.append((Decimal("1"), sug.unidad_contenido, ""))
+        return opciones, True
+    n = numero_suelto(insumo["unidad"])
+    if n is not None:
+        return [(n, "unidad", ""), (n, "kg", ""), (n, "l", "")], False
+    return [], False
+
+
 # ---------- interpretación e impacto (D6.3) ----------
 
 def _dec(valor, campo):

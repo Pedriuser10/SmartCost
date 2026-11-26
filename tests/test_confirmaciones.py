@@ -34,6 +34,31 @@ class TestSugerencias(unittest.TestCase):
             self.assertIsNone(conf.sugerir(texto), texto)
 
 
+class TestOpciones(unittest.TestCase):
+    def test_con_sugerencia_ofrece_la_sugerida_y_una_unidad(self):
+        ops, sugerida = conf.opciones_compra({"unidad": "2kg"})
+        self.assertTrue(sugerida)
+        self.assertEqual([(c, u) for c, u, _ in ops], [(D("2"), "kg"), (D("1"), "kg")])
+        ops, _ = conf.opciones_compra({"unidad": "kg"})
+        self.assertEqual([(c, u) for c, u, _ in ops], [(D("1"), "kg")])
+
+    def test_numero_suelto_da_atajos_sin_marcar(self):
+        ops, sugerida = conf.opciones_compra({"unidad": "12"})
+        self.assertFalse(sugerida)
+        self.assertEqual([(c, u) for c, u, _ in ops], [(D("12"), "unidad"), (D("12"), "kg"), (D("12"), "l")])
+
+    def test_sin_nada_interpretable(self):
+        self.assertEqual(conf.opciones_compra({"unidad": "porción"}), ([], False))
+
+    def test_base_y_textos(self):
+        self.assertEqual([conf.base_de(u) for u in ("kg", "l", "docena", "g")], ["g", "ml", "unidad", "g"])
+        self.assertEqual(conf.cantidad_texto(D("2.5"), "kg"), "2,5 kg")
+        self.assertEqual(conf.cantidad_texto(1, "docena"), "1 docena")
+        self.assertEqual(conf.cantidad_texto(12, "unidad"), "12 unidades")
+        with self.assertRaises(conf.ErrorConfirmacion):
+            conf.base_de("taza")
+
+
 class TestInterpretacion(unittest.TestCase):
     SACO = {"id": 1, "nombre": "Harina", "unidad": "10kg", "precio": 5000, "merma_pct": 0.1}
 
