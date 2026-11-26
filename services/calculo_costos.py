@@ -57,6 +57,8 @@ UNIDADES = {
     "mg":     ("masa",    "g",      Decimal("0.001")),
     "l":      ("volumen", "ml",     Decimal("1000")),
     "docena": ("conteo",  "unidad", Decimal("12")),
+    "m":      ("longitud", "m",     Decimal("1")),
+    "cm":     ("longitud", "m",     Decimal("0.01")),
 }
 
 DIAS_COSTO_VIGENTE = 30

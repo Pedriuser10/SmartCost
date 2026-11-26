@@ -100,12 +100,15 @@ class TestFormulaActualIntacta(unittest.TestCase):
 
 class TestCatalogoIgualAlDeSQL(unittest.TestCase):
     def test_unidades_coinciden_con_la_migracion(self):
-        ruta = os.path.join(RAIZ, "supabase", "migrations", "20261126000000_esquema_inicial.sql")
-        with open(ruta, encoding="utf-8") as f:
-            sql = f.read()
-        bloque = sql.split("insert into public.unidades", 1)[1].split(";", 1)[0]
-        filas = re.findall(r"\('(\w+)',\s*'[^']*',\s*'(\w+)',\s*'(\w+)',\s*([\d.]+)\)", bloque)
-        en_sql = {c: (d, b, Decimal(f)) for c, d, b, f in filas}
+        carpeta = os.path.join(RAIZ, "supabase", "migrations")
+        en_sql = {}
+        for nombre in sorted(os.listdir(carpeta)):           # todas las migraciones, en orden
+            with open(os.path.join(carpeta, nombre), encoding="utf-8") as f:
+                sql = f.read()
+            for bloque in sql.split("insert into public.unidades")[1:]:
+                bloque = bloque.split(";", 1)[0]
+                filas = re.findall(r"\('(\w+)',\s*'[^']*',\s*'(\w+)',\s*'(\w+)',\s*([\d.]+)\)", bloque)
+                en_sql.update({c: (d, b, Decimal(f)) for c, d, b, f in filas})
         self.assertEqual(en_sql, cc.UNIDADES)
 
 

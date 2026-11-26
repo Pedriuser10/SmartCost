@@ -2,15 +2,14 @@
 # Prueba la migración en un Postgres de Supabase DESECHABLE (Docker), sin tocar ningún
 # proyecto Supabase local ni remoto: sin puertos publicados, sin volúmenes con nombre,
 # y el contenedor se elimina al terminar.
-#   1. aplica la migración          2. ejecuta las pruebas pgTAP
-#   3. aplica el DOWN y verifica que no queda nada   4. vuelve a aplicar la migración
+#   1. aplica las migraciones en orden     2. ejecuta las pruebas pgTAP
+#   3. aplica los DOWN en orden inverso y verifica que no queda nada
+#   4. vuelve a aplicar las migraciones
 # Uso: bash supabase/probar_en_contenedor.sh   (desde la raíz del repositorio)
 set -euo pipefail
 IMAGEN="${IMAGEN:-public.ecr.aws/supabase/postgres:17.11.0.011}"
 NOMBRE="smartcost_pg_prueba_$$"
 DIR="$(cd "$(dirname "$0")" && pwd)"
-MIGRACION="$DIR/migrations/20261126000000_esquema_inicial.sql"
-DOWN="$DIR/rollback/20261126000000_esquema_inicial.down.sql"
 
 docker run -d --rm --name "$NOMBRE" \
     -e POSTGRES_PASSWORD="$(head -c 24 /dev/urandom | base64 | tr -dc A-Za-z0-9)" "$IMAGEN" >/dev/null
@@ -22,7 +21,8 @@ for _ in $(seq 1 60); do
     sleep 2
 done
 
-psql_ < "$MIGRACION" && echo "migración aplicada"
+aplicar() { for m in "$DIR"/migrations/*.sql; do psql_ < "$m"; done; }
+aplicar && echo "migraciones aplicadas: $(ls "$DIR"/migrations/*.sql | wc -l)"
 fallos=0
 for prueba in "$DIR"/tests/database/*.test.sql; do
     salida="$(docker exec -i "$NOMBRE" psql -U postgres -h localhost -X -q -tA < "$prueba" 2>&1)"
@@ -34,9 +34,9 @@ for prueba in "$DIR"/tests/database/*.test.sql; do
         grep -vE '^ok |^$' <<<"$salida" || true
     fi
 done
-psql_ < "$DOWN" 2>/dev/null
+for d in $(ls -r "$DIR"/rollback/*.down.sql); do psql_ < "$d" 2>/dev/null; done
 restos=$(psql_ -tAc "select count(*) from pg_tables where schemaname = 'public'")
 echo "DOWN aplicado: quedan $restos tablas en public"
 [ "$restos" = "0" ] || fallos=1
-psql_ < "$MIGRACION" && echo "migración aplicada de nuevo tras el DOWN"
+aplicar && echo "migraciones aplicadas de nuevo tras los DOWN"
 exit $fallos
