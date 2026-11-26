@@ -688,3 +688,216 @@ unitario.
   deben perderse en silencio); operaciones encoladas antes de una actualización que
   cambie el esquema; períodos prolongados sin conexión (sesión caducada, gran divergencia
   entre dispositivos, cola de gran tamaño).
+
+### 8.12 Propuesta de protección reforzada de datos locales
+
+**Estado: propuesta de arquitectura pendiente de validación técnica; implementación no
+autorizada.** Nada de esta subsección está aprobado como decisión ni implementado. Hoy los
+datos se guardan sin cifrado propio de la app en la carpeta privada de Android (3.1).
+No modifica D1–D7.
+
+**Requisitos propuestos**
+
+1. **Cifrado en reposo** de la base de datos local y de los datos sensibles.
+2. **Protección de las claves de cifrado** con mecanismos apropiados de Android. Evaluar
+   Android Keystore y sus limitaciones de integración con Python (acceso mediante
+   pyjnius, claves no exportables, comportamiento según la versión de Android).
+3. **SQLite cifrado compatible** con Python, Kivy, Buildozer, Android API 24+ y ARM64
+   (`arm64-v8a`). **No se asume** que SQLCipher u otra biblioteca funcione con
+   python-for-android hasta verificarlo con una compilación de prueba.
+4. **Protección del resto de archivos:** fotografías, archivos auxiliares de SQLite (WAL,
+   `-shm`, diarios y temporales), exportaciones (CSV u otras) y respaldos.
+5. **Autenticación para reanudar el acceso** cuando corresponda, coherente con la política
+   de acceso sin conexión de D7.1. El tiempo de validez de ese acceso **sigue sin
+   aprobarse** (8.10); 30 días es solo un valor propuesto, pendiente de aprobación.
+6. **Conservación de los cambios pendientes** de sincronización al bloquear o revalidar
+   la sesión: bloquear no descarta la cola ni los datos locales (coherente con D7.1).
+7. **Plan de migración de los datos existentes** con respaldo verificable, validación de
+   integridad y recuperación ante fallos (ver "Migración" más abajo).
+8. **Análisis** de rendimiento, recuperación de claves, reinstalación, pérdida del
+   dispositivo e incompatibilidades.
+9. **Prohibido** almacenar claves secretas en el código fuente, en el APK o junto a los
+   datos cifrados sin una protección adecuada.
+
+**Implicaciones**
+
+- **Cifrar SQLite no basta por sí solo.** No protege automáticamente:
+  - las fotos, que hoy son archivos sueltos en `<datos>/imagenes/` y que Kivy carga desde
+    una ruta de archivo;
+  - los archivos auxiliares, si la solución elegida no los cifra (hay que verificarlo);
+  - las exportaciones que la app escriba fuera de la base;
+  - los respaldos.
+- **Respaldos:** el procedimiento actual (6.3) copia `files/` con `run-as`. Con cifrado,
+  esa copia contendría datos cifrados y solo serviría si la clave sigue disponible; el
+  procedimiento de respaldo y restauración tendría que rediseñarse.
+- **Recuperación:** si se pierde la clave (reinstalación, restablecimiento de fábrica,
+  invalidación de la clave en Keystore), los datos locales cifrados serían
+  irrecuperables. Lo ya sincronizado podría recuperarse del servidor; **los cambios
+  pendientes no**.
+- **JSON originales:** migrar a una base cifrada no elimina los JSON en texto plano. En
+  memoria flash no se puede garantizar un borrado seguro, y borrar los originales
+  requiere una aprobación expresa aparte (siguen vigentes las reglas de la sección 2 y
+  de D6).
+- **Modelo de amenazas por definir:** Android ya aísla la carpeta privada de la app y, en
+  muchos dispositivos, cifra el almacenamiento. Hay que precisar frente a qué protege el
+  cifrado adicional (dispositivo con root, extracción física, copias de seguridad,
+  versiones debug) para elegir la solución proporcional.
+
+**Migración (propuesta)**
+
+1. Respaldo nuevo y verificado con SHA-256 antes de empezar (6.3); no se tocan los
+   respaldos existentes.
+2. Migración sobre una copia de trabajo, nunca sobre los originales.
+3. Validación antes de aceptar: integridad de la base, recuentos, relaciones, costos y
+   márgenes (mismo criterio de comparación que D6).
+4. Si algo falla, se descarta la copia y la app sigue con el almacenamiento anterior.
+5. Los originales se conservan hasta completar y verificar la migración.
+
+**Pruebas técnicas necesarias antes de elegir una solución**
+
+- Compilar un APK de prueba con cada biblioteca candidata (por ejemplo SQLCipher u
+  opciones similares; ninguna está elegida) y ejecutarlo en Android 7.0 (API 24) y en una
+  versión reciente, en ARM64.
+- Crear, abrir, escribir y consultar una base cifrada desde Python; comprobar que no se
+  puede abrir sin la clave o con una clave incorrecta.
+- Inspeccionar los archivos en disco (base, WAL, `-shm`, temporales) y verificar que no
+  contienen texto plano.
+- Guardar y recuperar la clave con Android Keystore mediante pyjnius; probar qué ocurre
+  tras actualizar la app (`adb install -r`), reinstalarla, cambiar el bloqueo de pantalla
+  o la biometría y restablecer el dispositivo.
+- Medir el impacto en el tiempo de arranque, en las consultas y en las escrituras con la
+  cola de sincronización, y en el tamaño del APK.
+- Interrumpir la app durante la migración y comprobar la recuperación.
+- Revisar las licencias de las bibliotecas candidatas.
+
+**Preguntas técnicas abiertas**
+
+- Modelo de amenazas y nivel de protección requerido.
+- Biblioteca de SQLite cifrado y forma de integrarla en python-for-android (receta
+  existente, receta propia u otra vía).
+- Esquema de claves: clave directa en Keystore o clave de datos envuelta por una clave de
+  Keystore; si la clave se vincula a la autenticación del usuario.
+- Cifrado de fotos y cómo mostrarlas en Kivy sin dejar copias descifradas en disco.
+- Cuándo se pide reautenticación (al abrir, tras inactividad, al vencer la validez
+  offline) y con qué método (contraseña, PIN, biometría; esta última ya figura como
+  pendiente en 4.2).
+- Si la sincronización puede ejecutarse mientras la app está bloqueada.
+- Formato y cifrado de los respaldos y de las exportaciones, y política de copia de
+  seguridad automática de Android.
+- Qué hacer con los JSON en texto plano después de una migración verificada.
+- Comportamiento ante pérdida del dispositivo (relacionado con la revocación pendiente
+  en 8.10).
+
+### 8.13 Propuesta de recuperación segura de datos locales cifrados
+
+**Estado: propuesta pendiente de validación técnica y de aprobación final;
+implementación no autorizada.** Complementa la propuesta 8.12 sin modificarla. No
+modifica D1–D7 ni 8.10. Ningún mecanismo descrito aquí está implementado ni probado, y no
+se afirma que funcione hasta disponer de pruebas verificables.
+
+**Separación de claves (a evaluar)**
+
+Tres elementos distintos, que no deben confundirse ni guardarse juntos sin protección:
+
+| Elemento | Qué es | Dónde viviría (propuesta) |
+|---|---|---|
+| Clave de datos | Clave aleatoria que cifra la base local (y, si se decide, fotos y copias) | Nunca en claro fuera de la memoria de la app |
+| Clave del dispositivo | Clave protegida por Android Keystore que envuelve la clave de datos | Keystore del dispositivo; no exportable |
+| Secreto de recuperación | Secreto controlado por el usuario que permite recuperar la clave de datos | Solo en poder del usuario |
+
+- Evaluar una **clave de datos aleatoria** con **dos envolturas criptográficas
+  independientes**: una con la clave del dispositivo (uso diario) y otra derivada del
+  secreto de recuperación (recuperación). Perder una envoltura no debe comprometer la otra.
+- Opción a evaluar, **no aprobada** (ni ella ni su formato): un **código de recuperación
+  aleatorio de alta entropía**, generado localmente y mostrado una sola vez al usuario.
+
+**Papel del servidor**
+
+- El servidor **puede** almacenar material de recuperación cifrado (por ejemplo, la
+  clave de datos envuelta con el secreto de recuperación).
+- El servidor **nunca** almacena la clave de datos ni el secreto de recuperación en texto
+  plano.
+- Recuperar la **cuenta** (Supabase Auth) **no** implica recuperar automáticamente la
+  clave ni los datos cifrados: sin el secreto de recuperación, el material cifrado del
+  servidor no sirve.
+
+**Recuperación en otro dispositivo (a evaluar)**
+
+1. Autenticación de la cuenta en el nuevo dispositivo.
+2. Validación de permisos en el servidor (roles de D1 y RLS).
+3. Descarga del material de recuperación cifrado.
+4. Recuperación local de la clave de datos con el secreto que introduce el usuario; el
+   secreto no se envía al servidor.
+5. Nueva envoltura de la clave de datos con la Keystore del nuevo dispositivo.
+
+**Qué se puede recuperar**
+
+| Tipo de dato | Recuperación |
+|---|---|
+| Datos ya sincronizados con Supabase | Desde el servidor, con autenticación y permisos (D1). Según el diseño propuesto no dependen del secreto de recuperación local. A confirmar. |
+| Copias cifradas remotas (si se crean) | Solo con el secreto de recuperación y si la copia está íntegra; tan actualizadas como la última copia. |
+| Cambios que nunca salieron del dispositivo | **No recuperables** tras perder el dispositivo, salvo que exista otra copia remota cifrada, íntegra y suficientemente actualizada. |
+
+**Amenazas y escenarios a evaluar**
+
+- **Intentos de adivinar el código:** si el material cifrado se descarga, un atacante
+  puede probar códigos sin conexión y los límites del servidor no lo frenan; la
+  protección depende de la entropía del código y de la función de derivación. Evaluar
+  también límites de descarga en el servidor.
+- **Pérdida del código:** sin el código, los datos que solo estén en la copia cifrada son
+  irrecuperables. Definir cómo se avisa al usuario y si se permite generar un código
+  nuevo mientras el dispositivo original siga disponible.
+- **Rotación de claves:** regenerar el código implica volver a envolver la clave de
+  datos; cambiar la clave de datos implica volver a cifrar la base y las copias.
+- **Revocación de acceso:** qué ocurre con el material de recuperación de un miembro
+  expulsado o de un dispositivo revocado (relacionado con la revocación pendiente en
+  8.10).
+- **Dispositivo comprometido mientras está desbloqueado:** el atacante podría leer los
+  datos con la clave en uso; la recuperación no lo evita. Evaluar revocación y rotación
+  posteriores.
+
+**Prohibiciones**
+
+- El código de recuperación nunca se guarda en logs, telemetría, analítica, código
+  fuente ni almacenamiento remoto en texto plano.
+- No se guardan claves secretas en el código, en el APK ni junto a los datos cifrados sin
+  protección adecuada (igual que el requisito 9 de 8.12).
+
+**Relación con el acceso sin conexión**
+
+La política de acceso sin conexión sigue **pendiente de aprobación** (D7.1 y 8.10, sin
+cambios). Esta propuesta no fija ningún tiempo de validez.
+
+**Preguntas técnicas abiertas**
+
+- Formato y entropía del código de recuperación (longitud, alfabeto, legibilidad, si se
+  divide en grupos).
+- Algoritmo de envoltura de claves y función de derivación del código, y su
+  disponibilidad en python-for-android.
+- Protección contra intentos de adivinar el código, en el dispositivo y en el servidor.
+- Si existirán copias remotas cifradas, con qué frecuencia y cómo se verifica su
+  integridad.
+- Si el material de recuperación es por usuario, por dispositivo o por negocio.
+- Recuperación ante pérdida o invalidación de la clave de Keystore (reinstalación,
+  cambio de bloqueo de pantalla o biometría, restablecimiento).
+- Compatibilidad de Android Keystore con API 24+ y ARM64 y su acceso desde Python
+  (pyjnius).
+
+**Pruebas aisladas necesarias antes de migrar datos reales**
+
+Solo con datos sintéticos, en un dispositivo o emulador de pruebas y en un proyecto
+Supabase de desarrollo; nunca con datos ni respaldos reales.
+
+- Generar la clave y las dos envolturas; abrir la base con la clave del dispositivo.
+- Simular la pérdida del dispositivo (borrar los datos de la app o usar otro emulador) y
+  recuperar en un segundo dispositivo con el código correcto.
+- Comprobar que un código incorrecto no abre los datos y medir el costo de cada intento.
+- Comprobar que, sin el código, la cuenta recuperada no da acceso a los datos cifrados.
+- Verificar que el servidor no recibe en ningún momento la clave de datos ni el código
+  (inspección de peticiones y de la base remota).
+- Buscar el código en logs del dispositivo (`logcat`) y del servidor para confirmar que
+  no aparece.
+- Probar la invalidación de la clave de Keystore, la reinstalación y la rotación del
+  código.
+- Confirmar que los cambios no sincronizados se pierden en los escenarios previstos y que
+  la app lo comunica claramente.
