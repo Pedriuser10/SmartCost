@@ -9,6 +9,7 @@ from views.ingenieria_menu_screen import IngenieriaMenuScreen
 from views.menu_visual_screen import MenuVisualScreen
 from views.plantillas_screen import PlantillasScreen
 from views.unidades_screen import ConfirmarInsumoScreen, UnidadesScreen
+from views.barra_lateral import Contenedor
 from kivy.core.window import Window
 from kivy.metrics import dp
 from kivy.uix.modalview import ModalView
@@ -96,18 +97,20 @@ class SmartCostApp(MDApp):
         ))
         
         registrar_evento("app_abierta", {"pantalla_inicial": "login"})
-        
-        return sm
+
+        self.sm = sm
+        return Contenedor(sm)
 
     def _tecla(self, window, tecla, *args):
         """Atrás cierra lo que esté abierto o vuelve al inicio, en vez de cerrar la app."""
-        if tecla != TECLA_ATRAS or not isinstance(self.root, ScreenManager):
+        sm = getattr(self, "sm", None)
+        if tecla != TECLA_ATRAS or sm is None:
             return False
         if cerrar_ventana_superior():
             return True
-        if self.root.current in PANTALLAS_RAIZ:
+        if sm.current in PANTALLAS_RAIZ:
             return False  # Android sale de la app como siempre
-        self.root.current = "inicio"
+        sm.current = "inicio"
         return True
 
 if __name__ == "__main__":
