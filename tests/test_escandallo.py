@@ -78,6 +78,11 @@ class TestEscandallo(Base):
         self.assertEqual(e.costo, (D("0.2") * 6500 * D("1.05") + 350 * D("1.02")) * 5 + 5000)
         self.assertEqual(storage.get_insumos_de_plato(self.burger)[0]["cantidad"], 0.15, "la simulación no guarda")
 
+    def test_resumen_ordenado_por_margen(self):
+        res = escandallo.resumen_platos()
+        self.assertEqual([p["nombre"] for p, _ in res], ["Hamburguesa", "Ceviche"])
+        self.assertGreater(res[0][1].margen, res[1][1].margen)
+
     def test_precio_cero_y_formula_invalida(self):
         e = escandallo.calcular(storage.get_plato(self.burger), precio=0)
         self.assertEqual(e.margen, 0)

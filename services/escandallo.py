@@ -113,3 +113,9 @@ def calcular(plato, porciones=1, formula="actual", cantidades=None, mano_obra=No
 
     return Escandallo(filas, n, insumos, mano, costo, venta, venta - costo, margen(costo),
                       costo_otra, margen(costo_otra), avisos)
+
+
+def resumen_platos(formula="actual"):
+    """Escandallo de cada plato guardado, ordenado de mayor a menor margen."""
+    filas = [(p, calcular(p, formula=formula)) for p in storage.get_platos()]
+    return sorted(filas, key=lambda t: t[1].margen, reverse=True)

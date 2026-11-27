@@ -148,5 +148,45 @@ class Segmentado(MDBoxLayout):
         self._al_elegir(clave)
 
 
+def celda(contenido, ancho=None, alin="left", estilo="cuerpo", color=TITULO, negrita=False, markup=False):
+    """Celda de tabla: texto o widget, con ancho fijo opcional."""
+    if isinstance(contenido, str):
+        fuente, rol = ESTILOS[estilo]
+        w = MDLabel(text=contenido, font_style=fuente, role=rol, bold=negrita, halign=alin, markup=markup,
+                    theme_text_color="Custom", text_color=color, size_hint_y=None)
+        w.bind(texture_size=lambda l, t: setattr(l, "height", t[1]))
+    else:
+        w = contenido
+    w.pos_hint = {"center_y": 0.5}
+    if ancho:
+        w.size_hint_x, w.width = None, ancho
+    return w
+
+
+def fila_tabla(celdas, al_tocar=None, alto_min=dp(44), relleno=dp(18)):
+    f = MDCard(style="filled", theme_bg_color="Custom", md_bg_color=BLANCO, radius=[0], orientation="horizontal",
+               padding=(relleno, dp(8)), spacing=dp(10), size_hint_y=None, height=alto_min,
+               ripple_behavior=al_tocar is not None)
+    for c in celdas:
+        f.add_widget(c)
+    f.bind(minimum_height=lambda w, h: setattr(w, "height", max(alto_min, h)))
+    if al_tocar:
+        f.bind(on_release=lambda *_: al_tocar())
+    return f
+
+
+def encabezado_tabla(columnas, relleno=dp(18)):
+    """columnas: [(TEXTO, ancho o None, alineación)]."""
+    caja = MDBoxLayout(size_hint_y=None, height=dp(34), padding=(relleno, 0), spacing=dp(10), md_bg_color=FONDO)
+    for texto, ancho, alin in columnas:
+        caja.add_widget(celda(texto, ancho, alin, "etiqueta", TEXTO_TENUE, negrita=True))
+    return caja
+
+
+def separador():
+    return MDBoxLayout(size_hint_y=None, height=dp(1), md_bg_color=BORDE_SUAVE)
+
+
 __all__ = ["pesos", "porcentaje", "capitalizar", "tono_margen", "etiqueta", "tarjeta", "pildora",
-           "cambiar_pildora", "boton", "estilo_boton", "Segmentado", "set_texto_boton"]
+           "cambiar_pildora", "boton", "estilo_boton", "Segmentado", "set_texto_boton", "celda", "fila_tabla",
+           "encabezado_tabla", "separador"]

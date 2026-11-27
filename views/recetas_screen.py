@@ -19,14 +19,26 @@ from kivymd.uix.filemanager import MDFileManager
 from models import storage, fotos
 from kivymd.uix.button import MDButton, MDButtonText, MDIconButton
 from views.utils import set_texto_boton
+from views import estilo as e
+from kivy.uix.textinput import TextInput
+from kivy.uix.widget import Widget
 from services.analytics_service import registrar_evento
 
 EXTENSIONES_FOTO = (".png", ".jpg", ".jpeg", ".webp")
 
+COLUMNAS_INSUMOS = [("NOMBRE", None, "left"), ("PRECIO / FORMATO", dp(170), "right"), ("MERMA", dp(64), "right"),
+                    ("COSTO CON MERMA", dp(200), "right"), ("UNIDAD", dp(190), "left")]
+COLUMNAS_PLATOS = [("PLATO", None, "left"), ("INGREDIENTES", dp(100), "right"), ("PRECIO DE VENTA", dp(130), "right"),
+                   ("COSTO REAL", dp(120), "right"), ("MARGEN", dp(110), "right")]
+ANCHO_TABLA_COMPLETA = dp(860)
+
+
 class RecetasScreen(MDScreen):
     def __init__(self, **kwargs):
-        super().__init__(name="mis_recetas", md_bg_color=(0.95, 0.95, 0.95, 1), **kwargs)
+        super().__init__(name="mis_recetas", md_bg_color=e.FONDO, **kwargs)
         self.modo = "insumos"
+        self.formula = "actual"
+        self.busqueda = ""
         self.dialog = None
         self.insumos_dialog = None
         self.menu = None
@@ -36,120 +48,187 @@ class RecetasScreen(MDScreen):
         self._imagen_seleccionada = None
         self.file_manager = None
 
-        root = MDBoxLayout(orientation="vertical", padding=dp(24), spacing=dp(14))
+        scroll = MDScrollView(do_scroll_x=False)
+        self.contenido = MDBoxLayout(orientation="vertical", adaptive_height=True, spacing=dp(16), padding=(dp(36), dp(28)))
+        scroll.add_widget(self.contenido)
+        self.add_widget(scroll)
 
-        back = MDButton(MDButtonText(text="‹  Volver al inicio", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48))
-        back.bind(on_release=lambda *_: setattr(self.manager, "current", "inicio"))
-        root.add_widget(back)
+        self.cabecera = MDBoxLayout(adaptive_height=True, spacing=dp(12))
+        textos = MDBoxLayout(orientation="vertical", adaptive_height=True, spacing=dp(4))
+        textos.add_widget(e.etiqueta("Inicio / Mis recetas", "pequeno", e.TEXTO_TENUE))
+        textos.add_widget(e.etiqueta("Mis recetas", "titulo", negrita=True))
+        self.cabecera.add_widget(textos)
+        acciones = MDBoxLayout(adaptive_size=True, spacing=dp(8), pos_hint={"center_y": 0.5})
+        self.btn_unidades = e.boton("Confirmar unidades", lambda: setattr(self.manager, "current", "confirmar_unidades"),
+                                    tipo="borde", ancho=dp(220))
+        self.btn_unidades.md_bg_color, self.btn_unidades.line_color = e.AMBAR_FONDO, e.get_color_from_hex("#FDE68A")
+        self.btn_unidades._txt.text_color = e.AMBAR_TEXTO
+        self.btn_agregar = e.boton("+ Agregar insumo", lambda: self.abrir_dialogo(), tipo="primario", ancho=dp(170))
+        acciones.add_widget(self.btn_unidades)
+        acciones.add_widget(self.btn_agregar)
+        self.cabecera.add_widget(acciones)
+        self.contenido.add_widget(self.cabecera)
 
-        root.add_widget(
-            MDLabel(text="Mis Recetas", font_style="Headline", role="medium", bold=True, size_hint_y=None, height=dp(52),
-                    theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1))
-        )
+        self.barra = MDBoxLayout(adaptive_height=True, spacing=dp(10))
+        self.seg_modo = e.Segmentado(None, [("insumos", "Insumos"), ("platos", "Platos")], self.cambiar_modo,
+                                     activo="insumos")
+        self.barra.add_widget(self.seg_modo)
+        self.barra.add_widget(Widget())
+        self.seg_formula = e.Segmentado("Merma", [("actual", "× (1 + m)"), ("propuesta", "÷ (1 − m)")],
+                                        self._cambiar_formula, activo="actual")
+        self.barra.add_widget(self.seg_formula)
+        buscador = MDCard(style="outlined", theme_bg_color="Custom", md_bg_color=e.BLANCO, theme_line_color="Custom",
+                          line_color=e.BORDE, radius=[dp(8)], size_hint=(None, None), size=(dp(240), dp(38)),
+                          padding=(dp(10), 0), spacing=dp(6))
+        buscador.add_widget(MDIcon(icon="magnify", theme_text_color="Custom", text_color=e.GRIS, size_hint_x=None,
+                                   width=dp(18), pos_hint={"center_y": 0.5}, theme_font_size="Custom", font_size="17sp"))
+        self.campo_buscar = TextInput(hint_text="Buscar…", multiline=False, background_normal="", background_active="",
+                                      background_color=(0, 0, 0, 0), foreground_color=e.TITULO, cursor_color=e.ACENTO,
+                                      font_size="14sp", padding=(0, dp(10), 0, 0), write_tab=False)
+        self.campo_buscar.bind(text=self._buscar)
+        buscador.add_widget(self.campo_buscar)
+        self.barra.add_widget(buscador)
+        self.contenido.add_widget(self.barra)
 
-        tabs = MDBoxLayout(size_hint_y=None, height=dp(48), spacing=dp(8))
-        # En KivyMD 2.0 el color del texto se cambia en el MDButtonText, no en el MDButton
-        self.txt_insumos = MDButtonText(text="INSUMOS")
-        self.txt_platos = MDButtonText(text="PLATOS")
-        self.btn_insumos = MDButton(
-            self.txt_insumos, style="text", size_hint_y=None, height=dp(48),
-            on_release=lambda x: self.cambiar_modo("insumos")
-        )
-        self.btn_platos = MDButton(
-            self.txt_platos, style="text", size_hint_y=None, height=dp(48),
-            on_release=lambda x: self.cambiar_modo("platos")
-        )
-        tabs.add_widget(self.btn_insumos)
-        tabs.add_widget(self.btn_platos)
-        root.add_widget(tabs)
+        self.tabla = e.tarjeta(padding=0)
+        self.contenido.add_widget(self.tabla)
+        self.bind(width=self._acomodar)
 
-        # Acceso a la confirmación de unidades (D6): no cambia los insumos, se guarda aparte
-        self.btn_unidades = MDButton(MDButtonText(text="Confirmar unidades"), style="tonal",
-                                     size_hint_y=None, height=dp(44))
-        self.btn_unidades.bind(on_release=lambda *_: setattr(self.manager, "current", "confirmar_unidades"))
-        root.add_widget(self.btn_unidades)
-
-        scroll = MDScrollView()
-        self.container = MDBoxLayout(orientation="vertical", spacing=dp(6), size_hint_y=None)
-        self.container.bind(minimum_height=self.container.setter("height"))
-        scroll.add_widget(self.container)
-        root.add_widget(scroll)
-
-        agregar_btn = MDButton(MDButtonText(text="+ Agregar", size_hint_y=None, height=dp(48)), style="text", size_hint_y=None, height=dp(48))
-        agregar_btn.bind(on_release=lambda x: self.abrir_dialogo())
-        root.add_widget(agregar_btn)
-
-        self.add_widget(root)
-        self._marcar_tab_activo()
+    def _acomodar(self, *args):
+        ancho = self.width
+        self.cabecera.orientation = "horizontal" if ancho >= dp(760) else "vertical"
+        self.barra.orientation = "horizontal" if ancho >= dp(900) else "vertical"
+        relleno = dp(36) if ancho >= dp(760) else dp(16)
+        self.contenido.padding = (relleno, dp(28) if relleno > dp(20) else dp(20))
+        compacta = ancho < ANCHO_TABLA_COMPLETA
+        if compacta != getattr(self, "_compacta", None):
+            self._compacta = compacta
+            if self.manager is not None:
+                self.refrescar()
 
     def on_pre_enter(self, *args):
         self.refrescar()
 
-    def _marcar_tab_activo(self):
-        activo = (0.2, 0.6, 1, 1)
-        inactivo = (0.6, 0.6, 0.6, 1)
-        self.txt_insumos.theme_text_color = "Custom"
-        self.txt_platos.theme_text_color = "Custom"
-        self.txt_insumos.text_color = activo if self.modo == "insumos" else inactivo
-        self.txt_platos.text_color = activo if self.modo == "platos" else inactivo
-
     def cambiar_modo(self, modo):
         self.modo = modo
-        self._marcar_tab_activo()
+        self.seg_modo.marcar(modo)
         self.refrescar()
 
-    def _actualizar_boton_unidades(self):
+    def _cambiar_formula(self, formula):
+        self.formula = formula
+        self.refrescar()
+
+    def _buscar(self, _w, texto):
+        self.busqueda = texto.strip().lower()
+        self.refrescar()
+
+    def _actualizar_botones(self, insumos, platos):
         try:
-            r = confirmaciones.resumen(storage.get_insumos())
+            r = confirmaciones.resumen(insumos)
+            faltan = r[confirmaciones.PENDIENTE] + r[confirmaciones.REVISAR]
+            set_texto_boton(self.btn_unidades, f"Confirmar unidades ({faltan})" if faltan else "Unidades confirmadas ✓")
         except confirmaciones.ErrorConfirmacion:
             set_texto_boton(self.btn_unidades, "Confirmar unidades (revisar archivo)")
-            return
-        faltan = r[confirmaciones.PENDIENTE] + r[confirmaciones.REVISAR]
-        set_texto_boton(self.btn_unidades, f"Confirmar unidades ({faltan} pendientes)" if faltan
-                        else "Unidades confirmadas ✓")
+        set_texto_boton(self.btn_agregar, "+ Agregar insumo" if self.modo == "insumos" else "+ Agregar plato")
+        self.seg_formula.opacity = 1 if self.modo == "insumos" else 0
+        self.seg_formula.disabled = self.modo != "insumos"
+        set_texto_boton(self.seg_modo.botones["insumos"], f"Insumos ({len(insumos)})")
+        set_texto_boton(self.seg_modo.botones["platos"], f"Platos ({len(platos)})")
+        for clave, b in self.seg_modo.botones.items():
+            b.width = dp(110)
 
     def refrescar(self):
-        self.container.clear_widgets()
-        self._actualizar_boton_unidades()
+        insumos, platos = storage.get_insumos(), storage.get_platos()
+        self._actualizar_botones(insumos, platos)
+        self.tabla.clear_widgets()
+        compacta = self.width < ANCHO_TABLA_COMPLETA
+        q = self.busqueda
         if self.modo == "insumos":
-            for insumo in storage.get_insumos():
-                texto = (
-                    f"{insumo['nombre']} — ${insumo['precio']:.0f} / {insumo['unidad']} "
-                    f"(merma {insumo['merma_pct'] * 100:.0f}%)"
-                )
-                self.container.add_widget(self._fila(texto, lambda i=insumo: self.abrir_dialogo(i)))
+            visibles = [i for i in insumos if not q or q in i["nombre"].lower()]
+            if not compacta:
+                self.tabla.add_widget(e.encabezado_tabla(COLUMNAS_INSUMOS))
+            try:
+                datos = confirmaciones.cargar()
+            except confirmaciones.ErrorConfirmacion:
+                datos = {"confirmaciones": {}}
+            for insumo in visibles:
+                self.tabla.add_widget(self._fila_insumo(insumo, datos, compacta))
         else:
-            from services.calculo_costos import costo_real_plato, margen
-            for plato in storage.get_platos():
-                usados = storage.get_insumos_de_plato(plato["id"])
-                costo = costo_real_plato(usados, plato["mano_obra"])
-                m = margen(plato["precio_venta"], costo)
-                texto = (
-                    f"{plato['nombre']} — venta ${plato['precio_venta']:.0f} "
-                    f"/ costo ${costo:.0f} / margen {m:.1f}%"
-                )
-                self.container.add_widget(
-                    self._fila(texto, lambda p=plato: self.abrir_dialogo(p), imagen=plato.get("imagen"))
-                )
+            from services import escandallo
+            resumen = {p["id"]: r for p, r in escandallo.resumen_platos()}
+            visibles = [p for p in platos if not q or q in p["nombre"].lower()]
+            if not compacta:
+                self.tabla.add_widget(e.encabezado_tabla(COLUMNAS_PLATOS))
+            for plato in visibles:
+                self.tabla.add_widget(self._fila_plato(plato, resumen[plato["id"]], compacta))
+        if not visibles:
+            texto = f"Sin resultados para «{self.busqueda}»." if q else "Aún no hay registros. Agrega el primero."
+            self.tabla.add_widget(e.fila_tabla([e.celda(texto, alin="center", color=e.TEXTO_TENUE)], alto_min=dp(64)))
 
-    def _fila(self, texto, on_tap, imagen=None):
-        fila = MDBoxLayout(orientation="horizontal", size_hint_y=None, height=dp(44), spacing=dp(8))
-        # En el JSON se guarda solo el nombre del archivo (o una ruta antigua): ruta_imagen() la
-        # busca en las fotos del usuario (<user_data_dir>/datos/imagenes) y en las de ejemplo.
-        # os.path.exists(imagen) no sirve: depende de la carpeta desde donde se ejecuta la app.
-        ruta = storage.ruta_imagen(imagen)
+    def _fila_insumo(self, insumo, datos, compacta):
+        from services.escandallo import factor_merma
+        merma = insumo.get("merma_pct") or 0
+        costo = insumo["precio"] * float(factor_merma(merma, self.formula))
+        otra = "propuesta" if self.formula == "actual" else "actual"
+        costo_otra = insumo["precio"] * float(factor_merma(merma, otra))
+        signo = "÷ (1 − m)" if otra == "propuesta" else "× (1 + m)"
+        estado = confirmaciones.estado(insumo, datos)
+        if estado == confirmaciones.CONFIRMADO:
+            c = confirmaciones.confirmacion(insumo, datos)
+            pill = e.pildora("Confirmada · " + confirmaciones.cantidad_texto(c["contenido"], c["unidad_contenido"]), "verde")
+        elif estado == confirmaciones.REVISAR:
+            pill = e.pildora("Por revisar", "rojo")
+        else:
+            sug = confirmaciones.sugerir(insumo["unidad"])
+            extra = confirmaciones.cantidad_texto(sug.contenido, sug.unidad_contenido) if sug else "sin sugerencia"
+            pill = e.pildora(f"Sin confirmar · {extra}", "ambar")
+        nombre = e.capitalizar(insumo["nombre"])
+        precio = f"{e.pesos(insumo['precio'])} [color=#71717A]/ {insumo['unidad']}[/color]"
+        merma_txt = e.porcentaje(merma * 100, 0) if merma else "—"
+        costo_txt = f"[b]{e.pesos(costo)}[/b] [color=#A1A1AA]({signo}: {e.pesos(costo_otra)})[/color]"
+        abrir = lambda i=insumo: self.abrir_dialogo(i)
+        if compacta:
+            caja = MDBoxLayout(orientation="vertical", adaptive_height=True, spacing=dp(4))
+            caja.add_widget(e.celda(nombre, negrita=True))
+            caja.add_widget(e.celda(f"{precio} · merma {merma_txt}", estilo="pequeno", color=e.TEXTO, markup=True))
+            caja.add_widget(e.celda(f"Con merma: {costo_txt}", estilo="pequeno", color=e.TEXTO, markup=True))
+            caja.add_widget(pill)
+            return e.fila_tabla([caja], abrir, relleno=dp(14))
+        return e.fila_tabla([
+            e.celda(nombre, negrita=True),
+            e.celda(precio, COLUMNAS_INSUMOS[1][1], "right", markup=True),
+            e.celda(merma_txt, COLUMNAS_INSUMOS[2][1], "right", color=e.AMBAR if merma >= 0.1 else e.TITULO),
+            e.celda(costo_txt, COLUMNAS_INSUMOS[3][1], "right", markup=True),
+            e.celda(MDBoxLayout(pill, size_hint_y=None, height=dp(26)), COLUMNAS_INSUMOS[4][1]),
+        ], abrir)
+
+    def _fila_plato(self, plato, res, compacta):
+        nombre = MDBoxLayout(spacing=dp(10), size_hint_y=None, height=dp(40))
+        ruta = storage.ruta_imagen(plato.get("imagen"))
         if ruta:
-            fila.add_widget(FitImage(source=ruta, size_hint=(None, None), size=(dp(40), dp(40)), radius=[dp(6)],
-                                     pos_hint={"center_y": 0.5}))
-        lbl = MDLabel(text=texto, theme_text_color="Custom", text_color=(0.1, 0.1, 0.1, 1))
-        # En pantallas angostas el texto ocupa varias líneas: la fila crece para no pisar la siguiente
-        lbl.bind(texture_size=lambda _l, s: setattr(fila, "height", max(dp(44), s[1] + dp(8))))
-        fila.add_widget(lbl)
-        btn = MDIconButton(icon="pencil", theme_icon_color="Custom", icon_color=(0.6, 0.6, 0.6, 1),
-                           pos_hint={"center_y": 0.5})
-        btn.bind(on_release=lambda x: on_tap())
-        fila.add_widget(btn)
-        return fila
+            nombre.add_widget(FitImage(source=ruta, size_hint=(None, None), size=(dp(40), dp(40)), radius=[dp(6)],
+                                       pos_hint={"center_y": 0.5}))
+        nombre.add_widget(e.celda(e.capitalizar(plato["nombre"]), negrita=True))
+        pill = e.pildora(e.porcentaje(res.margen), e.tono_margen(res.margen))
+        n = len(res.filas)
+        abrir = lambda p=plato: self.abrir_dialogo(p)
+        if compacta:
+            caja = MDBoxLayout(orientation="vertical", adaptive_height=True, spacing=dp(4))
+            caja.add_widget(nombre)
+            caja.add_widget(e.celda(f"Venta {e.pesos(res.precio)} · costo {e.pesos(res.costo)} · {n} ingredientes",
+                                    estilo="pequeno", color=e.TEXTO))
+            caja.add_widget(pill)
+            return e.fila_tabla([caja], abrir, relleno=dp(14))
+        margen = MDBoxLayout(size_hint_y=None, height=dp(26))
+        margen.add_widget(Widget())
+        margen.add_widget(pill)
+        return e.fila_tabla([
+            nombre,
+            e.celda(str(n), COLUMNAS_PLATOS[1][1], "right"),
+            e.celda(e.pesos(res.precio), COLUMNAS_PLATOS[2][1], "right"),
+            e.celda(e.pesos(res.costo), COLUMNAS_PLATOS[3][1], "right"),
+            e.celda(margen, COLUMNAS_PLATOS[4][1]),
+        ], abrir, alto_min=dp(56))
 
     def abrir_dialogo(self, item=None):
         if self.modo == "insumos":
